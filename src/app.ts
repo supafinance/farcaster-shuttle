@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs'
 import * as process from 'node:process'
 import url from 'node:url'
+// import { Command } from 'commander'
+import { Command } from '@commander-js/extra-typings'
 import {
     type HubEvent,
     type Message,
@@ -23,7 +24,6 @@ import {
     getHubClient,
 } from '@farcaster/shuttle'
 import type { Queue } from 'bullmq'
-import { Command } from 'commander'
 import { ok } from 'neverthrow'
 import { type AppDb, migrateToLatest } from './db.ts'
 import {
@@ -338,9 +338,7 @@ if (
     const program = new Command()
         .name('shuttle')
         .description('Synchronizes a Farcaster Hub with a Postgres database')
-        .version(JSON.parse(readFileSync('../package.json').toString()).version)
-
-    console.log('program', program)
+        .version('0.0.1')
 
     program.command('start').description('Starts the shuttle').action(start)
     program
@@ -351,6 +349,5 @@ if (
         .command('worker')
         .description('Starts the backfill worker')
         .action(worker)
-
     program.parse(process.argv)
 }
