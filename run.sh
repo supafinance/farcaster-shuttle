@@ -7,12 +7,12 @@
 POSTGRES_URL=${POSTGRES_URL:-postgres://shuttle:password@0.0.0.0:6541}
 REDIS_URL=${REDIS_URL:-redis://0.0.0.0:16379}
 HUB_HOST=${HUB_HOST:-localhost}
-HUB_PORT=${HUB_PORT:-8080}
+HUB_PORT=${HUB_PORT:-2283}
 
 # Install dependencies and build the project
 function install {
-    echo "Installing dependencies and building the project..."
-    bun install && bun run build
+    echo "Installing dependencies..."
+    bun install
 }
 
 # Start the worker for reconciliation/backfill
