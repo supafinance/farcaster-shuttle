@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { UserDataType, UserNameType } from '@farcaster/hub-nodejs'
+import type { UserNameType } from '@farcaster/hub-nodejs'
 import type { HubTables } from '@farcaster/hub-shuttle'
 import type { Fid } from '@farcaster/shuttle'
 import {
@@ -117,18 +117,24 @@ type VerificationRow = {
 
 // USER DATA ---------------------------------------------------------------------------------------
 declare const $userDataDbId: unique symbol
-type UserDataDbId = string & { [$userDataDbId]: true }
+type UserDataDbId = Fid & { [$userDataDbId]: true }
 
 type UserDataRow = {
-    id: GeneratedAlways<UserDataDbId>
+    fid: UserDataDbId
+    pfp: String
+    pfpUpdatedAt: Date | null
+    displayName: string
+    displayNameUpdatedAt: Date | null
+    bio: string
+    bioUpdatedAt: Date | null
+    url: string
+    urlUpdatedAt: Date | null
+    username: string
+    usernameUpdatedAt: Date | null
     createdAt: Generated<Date>
     updatedAt: Generated<Date>
     timestamp: Date
     deletedAt: Date | null
-    fid: Fid
-    type: UserDataType
-    hash: Uint8Array
-    value: string
 }
 
 // EVENTS ------------------------------------------------------------------------------------------

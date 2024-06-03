@@ -93,9 +93,7 @@ export const up = async (db: Kysely<any>) => {
     // USER DATA
     await db.schema
         .createTable('userData')
-        .addColumn('id', 'uuid', (col) =>
-            col.defaultTo(sql`generate_ulid()`).primaryKey(),
-        )
+        .addColumn('fid', 'bigint', (col) => col.primaryKey())
         .addColumn('createdAt', 'timestamptz', (col) =>
             col.notNull().defaultTo(sql`current_timestamp`),
         )
@@ -104,11 +102,16 @@ export const up = async (db: Kysely<any>) => {
         )
         .addColumn('timestamp', 'timestamptz', (col) => col.notNull())
         .addColumn('deletedAt', 'timestamptz')
-        .addColumn('fid', 'bigint', (col) => col.notNull())
-        .addColumn('type', 'int2', (col) => col.notNull())
-        .addColumn('hash', 'bytea', (col) => col.notNull().unique())
-        .addColumn('value', 'text', (col) => col.notNull())
-        .addUniqueConstraint('user_data_fid_type_unique', ['fid', 'type'])
+        .addColumn('pfp', 'text', (col) => col)
+        .addColumn('pfpUpdatedAt', 'timestamptz', (col) => col)
+        .addColumn('username', 'text', (col) => col.unique())
+        .addColumn('usernameUpdatedAt', 'timestamptz', (col) => col)
+        .addColumn('displayName', 'text', (col) => col)
+        .addColumn('displayNameUpdatedAt', 'timestamptz', (col) => col)
+        .addColumn('bio', 'text', (col) => col)
+        .addColumn('bioUpdatedAt', 'timestamptz', (col) => col)
+        .addColumn('url', 'text', (col) => col)
+        .addColumn('urlUpdatedAt', 'timestamptz', (col) => col)
         .execute()
 
     // Events
