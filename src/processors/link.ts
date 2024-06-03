@@ -7,6 +7,7 @@ export async function insertLinks({
     msgs,
     db,
 }: { msgs: Message[]; db: AppDb }) {
+    log.info('INSERTING LINKS')
     const links = formatLinks(msgs)
 
     if (!links) {
@@ -30,6 +31,7 @@ export async function deleteLinks({
     msgs,
     db,
 }: { msgs: Message[]; db: AppDb }) {
+    log.info('DELETING LINKS')
     try {
         for (const msg of msgs) {
             const data = msg.data

@@ -7,6 +7,7 @@ export async function insertUserDatas({
     msgs,
     db,
 }: { msgs: Message[]; db: AppDb }) {
+    log.info('INSERTING USER DATA')
     const userDatas = formatUserDatas(msgs)
 
     if (!userDatas) {

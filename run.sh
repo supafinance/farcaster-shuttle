@@ -17,7 +17,7 @@ function install {
 
 # Start the worker for reconciliation/backfill
 function start_worker {
-    echo "Starting the worker for reconciliation/backfill..."
+    echo "Starting the worker for reconciliation/b ackfill..."
     POSTGRES_URL=${POSTGRES_URL} REDIS_URL=${REDIS_URL} HUB_HOST=${HUB_HOST}:${HUB_PORT} HUB_SSL=false \
     bun start worker &
 }

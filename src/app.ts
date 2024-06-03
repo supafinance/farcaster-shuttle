@@ -216,6 +216,7 @@ export class App implements MessageHandler {
                 pageSize: 1,
                 reverse: true,
             })
+            log.debug('maxFidResult:', maxFidResult)
             if (maxFidResult === undefined) {
                 log.error('Hub client is not initialized')
                 throw new Error('Hub client is not initialized')

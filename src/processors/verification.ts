@@ -11,6 +11,7 @@ export async function insertVerifications({
     msgs,
     db,
 }: { msgs: Message[]; db: AppDb }) {
+    log.info('INSERTING VERIFICATIONS')
     const verifications = formatVerifications(msgs)
 
     if (!verifications) {
@@ -40,6 +41,7 @@ export async function deleteVerifications({
     msgs,
     db,
 }: { msgs: Message[]; db: AppDb }) {
+    log.info('DELETING VERIFICATIONS')
     try {
         for (const msg of msgs) {
             const data = msg.data
