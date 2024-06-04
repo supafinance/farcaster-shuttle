@@ -23,8 +23,6 @@ interface Database {
 export async function up(db: Kysely<Database>): Promise<void> {
     await db.schema
         .alterTable('userData')
-        .addColumn('timestamp', 'timestamptz', (col) => col.notNull())
-        .addColumn('deletedAt', 'timestamptz')
         .addColumn('pfp', 'text')
         .addColumn('pfpUpdatedAt', 'timestamptz')
         .addColumn('username', 'text', (col) => col.unique())
