@@ -32,14 +32,12 @@ export async function insertUserDatas({
                                 pfpUpdatedAt: new Date(data.timestamp),
                             })
                             .onConflict((oc) =>
-                                oc
-                                    .columns(['fid', 'pfp'])
-                                    .doUpdateSet((eb) => ({
-                                        pfp: eb.ref('excluded.pfp'),
-                                        pfpUpdatedAt: eb.ref(
-                                            'excluded.pfpUpdatedAt',
-                                        ),
-                                    })),
+                                oc.columns(['fid']).doUpdateSet((eb) => ({
+                                    pfp: eb.ref('excluded.pfp'),
+                                    pfpUpdatedAt: eb.ref(
+                                        'excluded.pfpUpdatedAt',
+                                    ),
+                                })),
                             )
                             .execute()
                     } catch (error) {
@@ -59,14 +57,12 @@ export async function insertUserDatas({
                                 displayNameUpdatedAt: new Date(data.timestamp),
                             })
                             .onConflict((oc) =>
-                                oc
-                                    .columns(['fid', 'displayName'])
-                                    .doUpdateSet((eb) => ({
-                                        value: eb.ref('excluded.displayName'),
-                                        displayNameUpdatedAt: eb.ref(
-                                            'excluded.displayNameUpdatedAt',
-                                        ),
-                                    })),
+                                oc.columns(['fid']).doUpdateSet((eb) => ({
+                                    value: eb.ref('excluded.displayName'),
+                                    displayNameUpdatedAt: eb.ref(
+                                        'excluded.displayNameUpdatedAt',
+                                    ),
+                                })),
                             )
                             .execute()
 
@@ -88,14 +84,12 @@ export async function insertUserDatas({
                                 bioUpdatedAt: new Date(data.timestamp),
                             })
                             .onConflict((oc) =>
-                                oc
-                                    .columns(['fid', 'bio'])
-                                    .doUpdateSet((eb) => ({
-                                        bio: eb.ref('excluded.bio'),
-                                        bioUpdatedAt: eb.ref(
-                                            'excluded.bioUpdatedAt',
-                                        ),
-                                    })),
+                                oc.columns(['fid']).doUpdateSet((eb) => ({
+                                    bio: eb.ref('excluded.bio'),
+                                    bioUpdatedAt: eb.ref(
+                                        'excluded.bioUpdatedAt',
+                                    ),
+                                })),
                             )
                             .execute()
 
@@ -117,14 +111,12 @@ export async function insertUserDatas({
                                 urlUpdatedAt: new Date(data.timestamp),
                             })
                             .onConflict((oc) =>
-                                oc
-                                    .columns(['fid', 'url'])
-                                    .doUpdateSet((eb) => ({
-                                        url: eb.ref('excluded.url'),
-                                        urlUpdatedAt: eb.ref(
-                                            'excluded.urlUpdatedAt',
-                                        ),
-                                    })),
+                                oc.columns(['fid']).doUpdateSet((eb) => ({
+                                    url: eb.ref('excluded.url'),
+                                    urlUpdatedAt: eb.ref(
+                                        'excluded.urlUpdatedAt',
+                                    ),
+                                })),
                             )
                             .execute()
 
@@ -146,14 +138,12 @@ export async function insertUserDatas({
                                 usernameUpdatedAt: new Date(data.timestamp),
                             })
                             .onConflict((oc) =>
-                                oc
-                                    .columns(['fid', 'username'])
-                                    .doUpdateSet((eb) => ({
-                                        username: eb.ref('excluded.username'),
-                                        usernameUpdatedAt: eb.ref(
-                                            'excluded.usernameUpdatedAt',
-                                        ),
-                                    })),
+                                oc.columns(['fid']).doUpdateSet((eb) => ({
+                                    username: eb.ref('excluded.username'),
+                                    usernameUpdatedAt: eb.ref(
+                                        'excluded.usernameUpdatedAt',
+                                    ),
+                                })),
                             )
                             .execute()
 
