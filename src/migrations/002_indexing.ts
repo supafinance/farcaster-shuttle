@@ -1,7 +1,7 @@
 import { type Kysely, sql } from 'kysely'
+import type { AppDb } from '../db.ts'
 
-// biome-ignore lint/suspicious/noExplicitAny: legacy code, avoid using ignore for new code
-export const up = async (db: Kysely<any>) => {
+export const up = async (db: AppDb) => {
     // FIDS
     await db.schema
         .createTable('fids')

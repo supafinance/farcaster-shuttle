@@ -6,7 +6,8 @@ import { formatCasts } from './utils'
 
 /**
  * Insert casts in the database
- * @param msg Hub event in JSON format
+ * @param {Message[]} msgs Hub events in JSON format
+ * @param {AppDb} db Database connection
  */
 export async function insertCasts(msgs: Message[], db: AppDb) {
     const casts = formatCasts(msgs)
@@ -25,9 +26,9 @@ export async function insertCasts(msgs: Message[], db: AppDb) {
 }
 
 /**
- * Update a cast in the database
- * @param hash Hash of the cast
- * @param change Object with the fields to update
+ * Add deletedAt to a cast in the database
+ * @param {Message[]} msgs Hub events in JSON format
+ * @param {AppDb} db Database connection
  */
 export async function deleteCasts(msgs: Message[], db: AppDb) {
     try {
