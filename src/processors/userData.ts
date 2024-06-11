@@ -58,7 +58,7 @@ export async function insertUserDatas({
                             })
                             .onConflict((oc) =>
                                 oc.columns(['fid']).doUpdateSet((eb) => ({
-                                    value: eb.ref('excluded.displayName'),
+                                    displayName: eb.ref('excluded.displayName'),
                                     displayNameUpdatedAt: eb.ref(
                                         'excluded.displayNameUpdatedAt',
                                     ),
