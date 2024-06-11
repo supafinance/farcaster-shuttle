@@ -1,4 +1,4 @@
-import type { Message } from '@farcaster/hub-nodejs'
+import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
 import type { AppDb } from '../db.ts'
 import { log } from '../log.ts'
 
@@ -28,8 +28,16 @@ export async function insertUserDatas({
                             .values({
                                 fid: data.fid,
                                 pfp: userData.value,
-                                timestamp: new Date(data.timestamp),
-                                pfpUpdatedAt: new Date(data.timestamp),
+                                timestamp: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
+                                pfpUpdatedAt: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
                             })
                             .onConflict((oc) =>
                                 oc.columns(['fid']).doUpdateSet((eb) => ({
@@ -53,8 +61,16 @@ export async function insertUserDatas({
                             .values({
                                 fid: data.fid,
                                 displayName: userData.value,
-                                timestamp: new Date(data.timestamp),
-                                displayNameUpdatedAt: new Date(data.timestamp),
+                                timestamp: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
+                                displayNameUpdatedAt: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
                             })
                             .onConflict((oc) =>
                                 oc.columns(['fid']).doUpdateSet((eb) => ({
@@ -80,8 +96,16 @@ export async function insertUserDatas({
                             .values({
                                 fid: data.fid,
                                 bio: userData.value,
-                                timestamp: new Date(data.timestamp),
-                                bioUpdatedAt: new Date(data.timestamp),
+                                timestamp: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
+                                bioUpdatedAt: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
                             })
                             .onConflict((oc) =>
                                 oc.columns(['fid']).doUpdateSet((eb) => ({
@@ -107,8 +131,16 @@ export async function insertUserDatas({
                             .values({
                                 fid: data.fid,
                                 url: userData.value,
-                                timestamp: new Date(data.timestamp),
-                                urlUpdatedAt: new Date(data.timestamp),
+                                timestamp: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
+                                urlUpdatedAt: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
                             })
                             .onConflict((oc) =>
                                 oc.columns(['fid']).doUpdateSet((eb) => ({
@@ -134,8 +166,16 @@ export async function insertUserDatas({
                             .values({
                                 fid: data.fid,
                                 username: userData.value,
-                                timestamp: new Date(data.timestamp),
-                                usernameUpdatedAt: new Date(data.timestamp),
+                                timestamp: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
+                                usernameUpdatedAt: new Date(
+                                    fromFarcasterTime(
+                                        data.timestamp,
+                                    )._unsafeUnwrap(),
+                                ),
                             })
                             .onConflict((oc) =>
                                 oc.columns(['fid']).doUpdateSet((eb) => ({
