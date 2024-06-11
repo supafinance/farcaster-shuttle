@@ -34,6 +34,11 @@ export async function up(db: Kysely<Database>): Promise<void> {
         .addColumn('url', 'text')
         .addColumn('urlUpdatedAt', 'timestamptz')
         .execute()
+
+    await db.schema
+        .alterTable('userData')
+        .addUniqueConstraint('userData_fid_unique', ['fid'])
+        .execute()
 }
 
 export async function down(db: Kysely<Database>): Promise<void> {
