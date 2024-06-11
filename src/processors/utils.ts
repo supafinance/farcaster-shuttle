@@ -2,35 +2,51 @@ import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
 import type { Insertable } from 'kysely'
 import type { Tables } from '../db.ts'
 
-export function formatUserDatas(msgs: Message[]) {
-    // Users can submit multiple messages with the same `userDataAddBody.type` within the batch period
-    // We reconcile this by using the value of the last message with the same type from that fid
-    const userDataMap = new Map<string, Message>()
-
-    for (const msg of msgs) {
+export function formatCasts(msgs: Message[]) {
+    return msgs.map((msg) => {
         const data = msg.data
-        if (!data || !data.userDataBody) {
-            continue
-        }
-        const userDataAddBody = data.userDataBody
-        userDataMap.set(`fid:${data.fid}-type:${userDataAddBody.type}`, msg)
-    }
 
-    return Array.from(userDataMap.values()).map((msg) => {
-        const data = msg.data
-        if (!data || !data.userDataBody) {
-            throw new Error('Unexpected missing data or userDataBody')
+        if (!data || !data.castAddBody) {
+            throw new Error('Unexpected missing data or castAddBody')
         }
-        const userDataAddBody = data.userDataBody
+
+        const castAddBody = data.castAddBody
         const timestamp = fromFarcasterTime(data.timestamp)._unsafeUnwrap()
 
         return {
             timestamp: new Date(timestamp),
             fid: data.fid,
-            type: userDataAddBody.type,
+            parentFid: castAddBody.parentCastId?.fid,
             hash: msg.hash,
-            value: userDataAddBody.value,
-        } satisfies Insertable<Tables['userData']>
+            parentHash: castAddBody.parentCastId?.hash,
+            parentUrl: castAddBody.parentUrl,
+            text: castAddBody.text,
+            embeds: JSON.stringify(castAddBody.embeds),
+            mentions: JSON.stringify(castAddBody.mentions),
+            mentionsPositions: JSON.stringify(castAddBody.mentionsPositions),
+        } satisfies Insertable<Tables['casts']>
+    })
+}
+
+export function formatReactions(msgs: Message[]) {
+    return msgs.map((msg) => {
+        const data = msg.data
+        if (!data || !data.reactionBody) {
+            throw new Error('Unexpected missing data or reactionBody')
+        }
+
+        const reaction = data.reactionBody
+        const timestamp = fromFarcasterTime(data.timestamp)._unsafeUnwrap()
+
+        return {
+            timestamp: new Date(timestamp),
+            fid: data.fid,
+            targetCastFid: reaction.targetCastId?.fid,
+            type: reaction.type,
+            hash: msg.hash,
+            targetCastHash: reaction.targetCastId?.hash,
+            targetUrl: reaction.targetUrl,
+        } satisfies Insertable<Tables['reactions']>
     })
 }
 

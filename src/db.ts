@@ -1,10 +1,10 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { UserNameType } from '@farcaster/hub-nodejs'
-import type { HubTables } from '@farcaster/hub-shuttle'
-import type { Fid } from '@farcaster/shuttle'
+import type { ReactionType, UserNameType } from '@farcaster/hub-nodejs'
+import type { Fid, Hex, HubTables } from '@farcaster/shuttle'
 import {
+    type ColumnType,
     FileMigrationProvider,
     type Generated,
     type GeneratedAlways,
@@ -56,6 +56,11 @@ export const migrateToLatest = async (
     return ok(undefined)
 }
 
+type CastIdJson = {
+    fid: Fid
+    hash: Hex
+}
+
 // FIDS -------------------------------------------------------------------------------------------
 type FidRow = {
     fid: Fid
@@ -79,6 +84,49 @@ type FnameRow = {
     fid: Fid
     type: UserNameType
     username: string
+}
+
+// CASTS -------------------------------------------------------------------------------------------
+declare const $castDbId: unique symbol
+type CastDbId = string & { [$castDbId]: true }
+
+type CastEmbedJson = { url: string } | { castId: CastIdJson }
+
+type CastRow = {
+    id: GeneratedAlways<CastDbId>
+    createdAt: Generated<Date>
+    updatedAt: Generated<Date>
+    timestamp: Date
+    deletedAt: Date | null
+    fid: Fid
+    parentFid: Fid | null
+    hash: Uint8Array
+    rootParentHash: Uint8Array | null
+    parentHash: Uint8Array | null
+    rootParentUrl: string | null
+    parentUrl: string | null
+    text: string
+    embeds: ColumnType<CastEmbedJson[], string, string>
+    mentions: ColumnType<Fid[], string, string>
+    mentionsPositions: ColumnType<number[], string, string>
+}
+
+// REACTIONS ---------------------------------------------------------------------------------------
+declare const $reactionDbId: unique symbol
+type ReactionDbId = string & { [$reactionDbId]: true }
+
+type ReactionRow = {
+    id: GeneratedAlways<ReactionDbId>
+    createdAt: Generated<Date>
+    updatedAt: Generated<Date>
+    timestamp: Date
+    deletedAt: Date | null
+    fid: Fid
+    targetCastFid: Fid | null
+    type: ReactionType
+    hash: Uint8Array
+    targetCastHash: Uint8Array | null
+    targetUrl: string | null
 }
 
 // LINKS -------------------------------------------------------------------------------------------
@@ -120,16 +168,16 @@ declare const $userDataDbId: unique symbol
 type UserDataDbId = Fid & { [$userDataDbId]: true }
 
 type UserDataRow = {
-    fid: UserDataDbId
-    pfp: String
+    fid: Fid
+    pfp: String | null
     pfpUpdatedAt: Date | null
-    displayName: string
+    displayName: string | null
     displayNameUpdatedAt: Date | null
-    bio: string
+    bio: string | null
     bioUpdatedAt: Date | null
-    url: string
+    url: string | null
     urlUpdatedAt: Date | null
-    username: string
+    username: string | null
     usernameUpdatedAt: Date | null
     createdAt: Generated<Date>
     updatedAt: Generated<Date>
@@ -146,6 +194,8 @@ type EventRow = {
 export interface Tables extends HubTables {
     fnames: FnameRow
     fids: FidRow
+    casts: CastRow
+    reactions: ReactionRow
     links: LinkRow
     verifications: VerificationRow
     userData: UserDataRow

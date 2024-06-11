@@ -39,6 +39,7 @@ import {
 } from './env.ts'
 import { log } from './log.ts'
 import { deleteLinks, insertLinks } from './processors/link.ts'
+import { deleteReactions, insertReactions } from './processors/reaction.ts'
 import { insertUserDatas } from './processors/userData.ts'
 import {
     deleteVerifications,
@@ -108,6 +109,18 @@ export class App implements MessageHandler {
         db: AppDb,
     ): Promise<void> {
         switch (type) {
+            // case MessageType.CAST_ADD:
+            //     await insertCasts(messages, db)
+            //     break
+            // case MessageType.CAST_REMOVE:
+            //     await deleteCasts(messages, db)
+            //     break
+            case MessageType.REACTION_ADD:
+                await insertReactions(messages, db)
+                break
+            case MessageType.REACTION_REMOVE:
+                await deleteReactions(messages, db)
+                break
             case MessageType.VERIFICATION_ADD_ETH_ADDRESS:
                 await insertVerifications({ msgs: messages, db })
                 break
@@ -170,14 +183,20 @@ export class App implements MessageHandler {
         log.info('Starting stream consumer')
         // Stream consumer reads from the redis stream and inserts them into postgres
         await this.streamConsumer.start(async (event) => {
+            log.info('event:', event)
             void this.processHubEvent(event)
             return ok({ skipped: false })
         })
     }
 
     async reconcileFids(fids: number[]) {
+        if (!this.hubSubscriber.hubClient) {
+            log.error('Hub client is not initialized')
+            throw new Error('Hub client is not initialized')
+        }
+
         const reconciler = new MessageReconciliation(
-            this.hubSubscriber.hubClient!,
+            this.hubSubscriber.hubClient,
             this.db,
             log,
         )
@@ -264,8 +283,14 @@ export class App implements MessageHandler {
 
     async stop() {
         this.hubSubscriber.stop()
-        const lastEventId = await this.redis.getLastProcessedEvent(this.hubId)
-        log.info(`Stopped at eventId: ${lastEventId}`)
+        try {
+            const lastEventId = await this.redis.getLastProcessedEvent(
+                this.hubId,
+            )
+            log.info(`Stopped at eventId: ${lastEventId}`)
+        } catch (e) {
+            log.error(e)
+        }
     }
 
     private async processHubEvent(hubEvent: HubEvent) {

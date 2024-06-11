@@ -16,7 +16,6 @@
         "@biomejs/biome": "^1.7.3",
         "@commander-js/extra-typings": "^12.1.0",
         "@farcaster/hub-nodejs": "^0.11.12",
-        "@farcaster/hub-shuttle": "^0.1.6",
         "@farcaster/shuttle": "^0.2.8",
         "bullmq": "^5.7.14",
         "commander": "^12.1.0",

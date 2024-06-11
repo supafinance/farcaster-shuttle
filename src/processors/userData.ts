@@ -1,32 +1,171 @@
 import type { Message } from '@farcaster/hub-nodejs'
 import type { AppDb } from '../db.ts'
 import { log } from '../log.ts'
-import { formatUserDatas } from './utils.ts'
 
 export async function insertUserDatas({
     msgs,
     db,
 }: { msgs: Message[]; db: AppDb }) {
     log.info('INSERTING USER DATA')
-    const userDatas = formatUserDatas(msgs)
+    await Promise.all(
+        msgs.map(async (msg) => {
+            const data = msg.data
+            if (!data || !data.userDataBody) {
+                return
+            }
+            const userData = data.userDataBody
 
-    if (!userDatas) {
-        return
-    }
+            switch (userData.type) {
+                // NONE
+                case 0: {
+                    break
+                }
+                // PFP
+                case 1: {
+                    try {
+                        await db
+                            .insertInto('userData')
+                            .values({
+                                fid: data.fid,
+                                pfp: userData.value,
+                                timestamp: new Date(data.timestamp),
+                                pfpUpdatedAt: new Date(data.timestamp),
+                            })
+                            .onConflict((oc) =>
+                                oc
+                                    .columns(['fid', 'pfp'])
+                                    .doUpdateSet((eb) => ({
+                                        pfp: eb.ref('excluded.pfp'),
+                                        pfpUpdatedAt: eb.ref(
+                                            'excluded.pfpUpdatedAt',
+                                        ),
+                                    })),
+                            )
+                            .execute()
+                    } catch (error) {
+                        log.error(error, 'ERROR INSERTING USER DATA')
+                    }
+                    break
+                }
+                // DISPLAY
+                case 2: {
+                    try {
+                        await db
+                            .insertInto('userData')
+                            .values({
+                                fid: data.fid,
+                                displayName: userData.value,
+                                timestamp: new Date(data.timestamp),
+                                displayNameUpdatedAt: new Date(data.timestamp),
+                            })
+                            .onConflict((oc) =>
+                                oc
+                                    .columns(['fid', 'displayName'])
+                                    .doUpdateSet((eb) => ({
+                                        value: eb.ref('excluded.displayName'),
+                                        displayNameUpdatedAt: eb.ref(
+                                            'excluded.displayNameUpdatedAt',
+                                        ),
+                                    })),
+                            )
+                            .execute()
 
-    try {
-        await db
-            .insertInto('userData')
-            .values(userDatas)
-            .onConflict((oc) =>
-                oc.columns(['fid', 'type']).doUpdateSet((eb) => ({
-                    value: eb.ref('excluded.value'),
-                })),
-            )
-            .execute()
+                        log.debug('USER DATA INSERTED')
+                    } catch (error) {
+                        log.error(error, 'ERROR INSERTING USER DATA')
+                    }
+                    break
+                }
+                // BIO
+                case 3: {
+                    try {
+                        await db
+                            .insertInto('userData')
+                            .values({
+                                fid: data.fid,
+                                bio: userData.value,
+                                timestamp: new Date(data.timestamp),
+                                bioUpdatedAt: new Date(data.timestamp),
+                            })
+                            .onConflict((oc) =>
+                                oc
+                                    .columns(['fid', 'bio'])
+                                    .doUpdateSet((eb) => ({
+                                        bio: eb.ref('excluded.bio'),
+                                        bioUpdatedAt: eb.ref(
+                                            'excluded.bioUpdatedAt',
+                                        ),
+                                    })),
+                            )
+                            .execute()
 
-        log.debug('USER DATA INSERTED')
-    } catch (error) {
-        log.error(error, 'ERROR INSERTING USER DATA')
-    }
+                        log.debug('USER DATA INSERTED')
+                    } catch (error) {
+                        log.error(error, 'ERROR INSERTING USER DATA')
+                    }
+                    break
+                }
+                // URL
+                case 5: {
+                    try {
+                        await db
+                            .insertInto('userData')
+                            .values({
+                                fid: data.fid,
+                                url: userData.value,
+                                timestamp: new Date(data.timestamp),
+                                urlUpdatedAt: new Date(data.timestamp),
+                            })
+                            .onConflict((oc) =>
+                                oc
+                                    .columns(['fid', 'url'])
+                                    .doUpdateSet((eb) => ({
+                                        url: eb.ref('excluded.url'),
+                                        urlUpdatedAt: eb.ref(
+                                            'excluded.urlUpdatedAt',
+                                        ),
+                                    })),
+                            )
+                            .execute()
+
+                        log.debug('USER DATA INSERTED')
+                    } catch (error) {
+                        log.error(error, 'ERROR INSERTING USER DATA')
+                    }
+                    break
+                }
+                // USERNAME
+                case 6: {
+                    try {
+                        await db
+                            .insertInto('userData')
+                            .values({
+                                fid: data.fid,
+                                username: userData.value,
+                                timestamp: new Date(data.timestamp),
+                                usernameUpdatedAt: new Date(data.timestamp),
+                            })
+                            .onConflict((oc) =>
+                                oc
+                                    .columns(['fid', 'username'])
+                                    .doUpdateSet((eb) => ({
+                                        username: eb.ref('excluded.username'),
+                                        usernameUpdatedAt: eb.ref(
+                                            'excluded.usernameUpdatedAt',
+                                        ),
+                                    })),
+                            )
+                            .execute()
+
+                        log.debug('USER DATA INSERTED')
+                    } catch (error) {
+                        log.error(error, 'ERROR INSERTING USER DATA')
+                    }
+                    break
+                }
+                default:
+                    log.error('UNKNOWN USER DATA TYPE')
+            }
+        }),
+    )
 }
