@@ -67,8 +67,8 @@ type FidRow = {
     createdAt: Generated<Date>
     updatedAt: Generated<Date>
     registeredAt: Date
-    custodyAddress: Uint8Array
-    recoveryAddress: Uint8Array
+    custodyAddress: Hex
+    recoveryAddress: Hex
 }
 
 // FNAMES ------------------------------------------------------------------------------------------
@@ -157,8 +157,7 @@ type VerificationRow = {
     timestamp: Date
     deletedAt: Date | null
     fid: Fid
-    hash: Uint8Array
-    signerAddress: Uint8Array
+    signerAddress: Hex
     blockHash: Uint8Array
     signature: Uint8Array
 }

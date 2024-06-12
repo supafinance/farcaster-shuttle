@@ -1,5 +1,6 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
 import type { Insertable } from 'kysely'
+import { toHex } from 'viem'
 import type { Tables } from '../db.ts'
 
 export function formatCasts(msgs: Message[]) {
@@ -64,8 +65,7 @@ export function formatVerifications(msgs: Message[]) {
         return {
             timestamp: new Date(timestamp),
             fid: data.fid,
-            hash: msg.hash,
-            signerAddress: addAddressBody.address,
+            signerAddress: toHex(addAddressBody.address),
             blockHash: addAddressBody.blockHash,
             signature: addAddressBody.claimSignature,
         } satisfies Insertable<Tables['verifications']>

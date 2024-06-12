@@ -5,7 +5,7 @@ export const up = async (db: AppDb) => {
     // FIDS
     await db.schema
         .createTable('fids')
-        .addColumn('fid', 'bigint', (col) => col.primaryKey())
+        .addColumn('fid', 'decimal(12, 0)', (col) => col.primaryKey())
         .addColumn('createdAt', 'timestamptz', (col) =>
             col.notNull().defaultTo(sql`current_timestamp`),
         )
@@ -13,8 +13,8 @@ export const up = async (db: AppDb) => {
             col.notNull().defaultTo(sql`current_timestamp`),
         )
         .addColumn('registeredAt', 'timestamptz', (col) => col.notNull())
-        .addColumn('custodyAddress', 'bytea', (col) => col.notNull())
-        .addColumn('recoveryAddress', 'bytea', (col) => col.notNull())
+        .addColumn('custodyAddress', 'varchar(42)', (col) => col.notNull())
+        .addColumn('recoveryAddress', 'varchar(42)', (col) => col.notNull())
         .execute()
 
     // FNAMES
@@ -31,8 +31,7 @@ export const up = async (db: AppDb) => {
         )
         .addColumn('registeredAt', 'timestamptz', (col) => col.notNull())
         .addColumn('deletedAt', 'timestamptz')
-        .addColumn('fid', 'bigint', (col) => col.notNull())
-        .addColumn('type', sql`smallint`, (col) => col.notNull())
+        .addColumn('fid', 'decimal(12, 0)', (col) => col.notNull())
         .addColumn('username', 'text', (col) => col.notNull())
         .addUniqueConstraint('fnames_fid_unique', ['fid'])
         .addUniqueConstraint('fnames_username_unique', ['username'])
@@ -52,11 +51,9 @@ export const up = async (db: AppDb) => {
         )
         .addColumn('timestamp', 'timestamptz', (col) => col.notNull())
         .addColumn('deletedAt', 'timestamptz')
-        .addColumn('fid', 'bigint', (col) => col.notNull())
-        .addColumn('targetFid', 'bigint', (col) => col.notNull())
+        .addColumn('fid', 'decimal(12, 0)', (col) => col.notNull())
+        .addColumn('targetFid', 'decimal(12, 0)', (col) => col.notNull())
         .addColumn('displayTimestamp', 'timestamptz')
-        .addColumn('type', 'text', (col) => col.notNull())
-        .addColumn('hash', 'bytea', (col) => col.notNull().unique())
         .execute()
 
     // VERIFICATIONS
@@ -73,9 +70,8 @@ export const up = async (db: AppDb) => {
         )
         .addColumn('timestamp', 'timestamptz', (col) => col.notNull())
         .addColumn('deletedAt', 'timestamptz')
-        .addColumn('fid', 'bigint', (col) => col.notNull())
-        .addColumn('hash', 'bytea', (col) => col.notNull())
-        .addColumn('signerAddress', 'bytea', (col) => col.notNull())
+        .addColumn('fid', 'decimal(12, 0)', (col) => col.notNull())
+        .addColumn('signerAddress', 'varchar(42)', (col) => col.notNull())
         .addColumn('blockHash', 'bytea', (col) => col.notNull())
         .addColumn('signature', 'bytea', (col) => col.notNull())
         .addUniqueConstraint('verifications_signer_address_fid_unique', [
@@ -93,7 +89,7 @@ export const up = async (db: AppDb) => {
     // USER DATA
     await db.schema
         .createTable('userData')
-        .addColumn('fid', 'bigint', (col) => col.primaryKey())
+        .addColumn('fid', 'decimal(12, 0)', (col) => col.primaryKey())
         .addColumn('createdAt', 'timestamptz', (col) =>
             col.notNull().defaultTo(sql`current_timestamp`),
         )

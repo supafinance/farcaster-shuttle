@@ -23,7 +23,7 @@ interface Database {
 export async function up(db: Kysely<Database>): Promise<void> {
     await db.schema
         .createTable('userData')
-        .addColumn('fid', 'bigint', (col) => col.primaryKey())
+        .addColumn('fid', 'decimal(12, 0)', (col) => col.primaryKey())
         .addColumn('createdAt', 'timestamptz', (col) =>
             col.notNull().defaultTo(sql`current_timestamp`),
         )
