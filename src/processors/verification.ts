@@ -15,7 +15,7 @@ export async function insertVerifications({
     log.info('INSERTING VERIFICATIONS')
     const verifications = formatVerifications(msgs)
 
-    if (!verifications) {
+    if (!verifications || verifications.length === 0) {
         return
     }
 

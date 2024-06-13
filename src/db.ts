@@ -2,7 +2,6 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ReactionType, UserNameType } from '@farcaster/hub-nodejs'
-import type { Fid, Hex, HubTables } from '@farcaster/shuttle'
 import {
     type ColumnType,
     FileMigrationProvider,
@@ -13,6 +12,7 @@ import {
 } from 'kysely'
 import { type Result, err, ok } from 'neverthrow'
 import type { Logger } from './log.ts'
+import type { Fid, Hex, HubTables } from './shuttle'
 
 // biome-ignore lint/correctness/noUnusedVariables: <explanation>
 const createMigrator = async (db: Kysely<HubTables>, log: Logger) => {

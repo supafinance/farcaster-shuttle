@@ -8,21 +8,6 @@ import {
     MessageType,
     bytesToHexString,
 } from '@farcaster/hub-nodejs'
-import {
-    type DB,
-    EventStreamConnection,
-    EventStreamHubSubscriber,
-    HubEventProcessor,
-    HubEventStreamConsumer,
-    type HubSubscriber,
-    type MessageHandler,
-    MessageReconciliation,
-    type MessageState,
-    RedisClient,
-    type StoreMessageOperation,
-    getDbClient,
-    getHubClient,
-} from '@farcaster/shuttle'
 import type { Queue } from 'bullmq'
 import { ok } from 'neverthrow'
 import { type AppDb, migrateToLatest } from './db.ts'
@@ -33,7 +18,6 @@ import {
     HUB_SSL,
     MAX_FID,
     POSTGRES_URL,
-    REDIS_URL,
     SHARD_INDEX,
     TOTAL_SHARDS,
 } from './env.ts'
@@ -45,12 +29,27 @@ import {
     deleteVerifications,
     insertVerifications,
 } from './processors/verification.ts'
+import {
+    type DB,
+    EventStreamConnection,
+    EventStreamHubSubscriber,
+    HubEventProcessor,
+    HubEventStreamConsumer,
+    type HubSubscriber,
+    KafkaClient,
+    type MessageHandler,
+    MessageReconciliation,
+    type MessageState,
+    type StoreMessageOperation,
+    getDbClient,
+    getHubClient,
+} from './shuttle'
 import { getQueue, getWorker } from './worker.ts'
 
 const hubId = 'shuttle'
 
 export class App implements MessageHandler {
-    public redis: RedisClient
+    public kafka: KafkaClient
     private readonly db: DB
     private hubSubscriber: HubSubscriber
     private streamConsumer: HubEventStreamConsumer
@@ -58,12 +57,12 @@ export class App implements MessageHandler {
 
     constructor(
         db: DB,
-        redis: RedisClient,
+        kafka: KafkaClient,
         hubSubscriber: HubSubscriber,
         streamConsumer: HubEventStreamConsumer,
     ) {
         this.db = db
-        this.redis = redis
+        this.kafka = kafka
         this.hubSubscriber = hubSubscriber
         this.hubId = hubId
         this.streamConsumer = streamConsumer
@@ -71,7 +70,6 @@ export class App implements MessageHandler {
 
     static create(
         dbUrl: string,
-        redisUrl: string,
         hubUrl: string,
         totalShards: number,
         shardIndex: number,
@@ -79,15 +77,15 @@ export class App implements MessageHandler {
     ) {
         const db = getDbClient(dbUrl)
         const hub = getHubClient(hubUrl, { ssl: hubSSL })
-        const redis = RedisClient.create(redisUrl)
-        const eventStreamForWrite = new EventStreamConnection(redis.client)
-        const eventStreamForRead = new EventStreamConnection(redis.client)
+        const kafka = KafkaClient.create()
+        const eventStreamForWrite = new EventStreamConnection(kafka.client)
+        const eventStreamForRead = new EventStreamConnection(kafka.client)
         const shardKey = totalShards === 0 ? 'all' : `${shardIndex}`
         const hubSubscriber = new EventStreamHubSubscriber(
             hubId,
             hub,
             eventStreamForWrite,
-            redis,
+            kafka,
             shardKey,
             log,
             undefined,

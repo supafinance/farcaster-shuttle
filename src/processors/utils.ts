@@ -62,11 +62,16 @@ export function formatVerifications(msgs: Message[]) {
         const addAddressBody = data.verificationAddAddressBody
         const timestamp = fromFarcasterTime(data.timestamp)._unsafeUnwrap()
 
-        return {
-            timestamp: new Date(timestamp),
-            fid: data.fid,
-            signerAddress: toHex(addAddressBody.address, { size: 20 }),
-        } satisfies Insertable<Tables['verifications']>
+        try {
+            const signerAddress = toHex(addAddressBody.address, { size: 20 })
+            return {
+                timestamp: new Date(timestamp),
+                fid: data.fid,
+                signerAddress,
+            } satisfies Insertable<Tables['verifications']>
+        } catch (e) {
+            throw new Error(`Invalid signer address ${e}`)
+        }
     })
 }
 

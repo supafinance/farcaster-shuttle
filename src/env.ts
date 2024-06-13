@@ -13,7 +13,9 @@ export const HUB_SSL = process.env.HUB_SSL === 'true'
 
 export const POSTGRES_URL =
     process.env.POSTGRES_URL || 'postgres://localhost:5432'
-export const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+export const KAFKA_ENDPOINT = process.env.KAFKA_ENDPOINT || 'localhost:9092'
+export const UPSTASH_KAFKA_USERNAME = process.env.UPSTASH_KAFKA_USERNAME || ''
+export const UPSTASH_KAFKA_PASSWORD = process.env.UPSTASH_KAFKA_PASSWORD || ''
 
 export const TOTAL_SHARDS = Number.parseInt(process.env.SHARDS || '0')
 export const SHARD_INDEX = Number.parseInt(process.env.SHARD_NUM || '0')
