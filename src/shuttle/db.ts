@@ -149,7 +149,7 @@ export const getDbClient = (connectionString?: string) => {
     return new Kysely<HubTables>({
         dialect: new PostgresDialect({
             pool: new Pool({
-                max: 2000,
+                max: 120,
                 connectionString,
             }),
             cursor: Cursor,

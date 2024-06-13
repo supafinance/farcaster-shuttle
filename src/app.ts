@@ -253,7 +253,7 @@ export class App implements MessageHandler {
             }
             log.debug(`Queuing up fids upto: ${maxFid}`)
             // create an array of arrays in batches of 100 upto maxFid
-            const batchSize = 100
+            const batchSize = 20
             const fids = Array.from(
                 { length: Math.ceil(maxFid / batchSize) },
                 (_, i) => i * batchSize,

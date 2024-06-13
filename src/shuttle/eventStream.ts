@@ -219,15 +219,14 @@ export class EventStreamConnection {
                     data,
                 }),
             )
-        } else {
-            return []
         }
+        return []
     }
 }
 
 const GROUP_NAME = 'hub_events'
-const MAX_EVENTS_PER_FETCH = 100
-const MESSAGE_PROCESSING_CONCURRENCY = 100
+const MAX_EVENTS_PER_FETCH = 20
+const MESSAGE_PROCESSING_CONCURRENCY = 20
 const EVENT_PROCESSING_TIMEOUT = 10_000 // How long before retrying processing (millis)
 const EVENT_DELETION_THRESHOLD = 1000 * 60 * 60 * 24 // 1 day
 

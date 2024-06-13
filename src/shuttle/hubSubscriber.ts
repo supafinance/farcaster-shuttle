@@ -195,7 +195,7 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
     private eventStream: EventStreamConnection
     private redis: RedisClient
     private eventsToAdd: HubEvent[]
-    private eventBatchSize = 100
+    private eventBatchSize = 20
 
     constructor(
         label: string,
