@@ -5,7 +5,6 @@ import {
     bytesToBase58,
     fromFarcasterTime,
 } from '@farcaster/hub-nodejs'
-import type { MessageBodyJson, VerificationProtocol } from '@farcaster/shuttle'
 import type {
     DeleteQueryBuilder,
     InsertQueryBuilder,
@@ -13,6 +12,7 @@ import type {
     UpdateQueryBuilder,
 } from 'kysely'
 import { format as formatSql } from 'sql-formatter'
+import type { MessageBodyJson, VerificationProtocol } from './shuttle'
 
 export function extendStackTrace(
     err: unknown,

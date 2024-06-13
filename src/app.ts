@@ -8,20 +8,6 @@ import {
     MessageType,
     bytesToHexString,
 } from '@farcaster/hub-nodejs'
-import {
-    type DB,
-    EventStreamConnection,
-    EventStreamHubSubscriber,
-    HubEventProcessor,
-    HubEventStreamConsumer,
-    type HubSubscriber,
-    type MessageHandler,
-    MessageReconciliation,
-    type MessageState,
-    RedisClient,
-    type StoreMessageOperation,
-    getHubClient,
-} from '@farcaster/shuttle'
 import type { Queue } from 'bullmq'
 import { ok } from 'neverthrow'
 import { type AppDb, migrateToLatest } from './db.ts'
@@ -44,7 +30,21 @@ import {
     deleteVerifications,
     insertVerifications,
 } from './processors/verification.ts'
-import { getDbClient } from './shuttle'
+import {
+    type DB,
+    EventStreamConnection,
+    EventStreamHubSubscriber,
+    HubEventProcessor,
+    HubEventStreamConsumer,
+    type HubSubscriber,
+    type MessageHandler,
+    MessageReconciliation,
+    type MessageState,
+    RedisClient,
+    type StoreMessageOperation,
+    getDbClient,
+    getHubClient,
+} from './shuttle'
 import { getQueue, getWorker } from './worker.ts'
 
 const hubId = 'shuttle'
@@ -253,7 +253,7 @@ export class App implements MessageHandler {
             }
             log.debug(`Queuing up fids upto: ${maxFid}`)
             // create an array of arrays in batches of 100 upto maxFid
-            const batchSize = 10
+            const batchSize = 100
             const fids = Array.from(
                 { length: Math.ceil(maxFid / batchSize) },
                 (_, i) => i * batchSize,
