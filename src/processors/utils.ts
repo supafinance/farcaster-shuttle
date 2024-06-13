@@ -65,9 +65,7 @@ export function formatVerifications(msgs: Message[]) {
         return {
             timestamp: new Date(timestamp),
             fid: data.fid,
-            signerAddress: toHex(addAddressBody.address),
-            blockHash: addAddressBody.blockHash,
-            signature: addAddressBody.claimSignature,
+            signerAddress: toHex(addAddressBody.address, { size: 20 }),
         } satisfies Insertable<Tables['verifications']>
     })
 }

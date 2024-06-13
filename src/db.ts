@@ -158,8 +158,6 @@ type VerificationRow = {
     deletedAt: Date | null
     fid: Fid
     signerAddress: Hex
-    blockHash: Uint8Array
-    signature: Uint8Array
 }
 
 // USER DATA ---------------------------------------------------------------------------------------
