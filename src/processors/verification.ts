@@ -1,4 +1,5 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
+import { toHex } from 'viem'
 import type { AppDb } from '../db.ts'
 import { log } from '../log.ts'
 import { formatVerifications } from './utils.ts'
@@ -48,7 +49,7 @@ export async function deleteVerifications({
             if (!data || !data.verificationRemoveBody) {
                 continue
             }
-            const address = data.verificationRemoveBody.address
+            const address = toHex(data.verificationRemoveBody.address)
 
             await db
                 .updateTable('verifications')
