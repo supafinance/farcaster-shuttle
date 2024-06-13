@@ -53,20 +53,22 @@ export function formatReactions(msgs: Message[]) {
 
 export function formatVerifications(msgs: Message[]) {
     return msgs.map((msg) => {
-        const data = msg.data
-        if (!data || !data.verificationAddAddressBody) {
-            throw new Error(
-                'Unexpected missing data or verificationAddAddressBody',
-            )
-        }
-        const addAddressBody = data.verificationAddAddressBody
-        const timestamp = fromFarcasterTime(data.timestamp)._unsafeUnwrap()
+        try {
+            const data = msg.data
+            if (!data || !data.verificationAddAddressBody) {
+                throw new Error(
+                    'Unexpected missing data or verificationAddAddressBody',
+                )
+            }
+            const addAddressBody = data.verificationAddAddressBody
+            const timestamp = fromFarcasterTime(data.timestamp)._unsafeUnwrap()
 
-        return {
-            timestamp: new Date(timestamp),
-            fid: data.fid,
-            signerAddress: toHex(addAddressBody.address, { size: 20 }),
-        } satisfies Insertable<Tables['verifications']>
+            return {
+                timestamp: new Date(timestamp),
+                fid: data.fid,
+                signerAddress: toHex(addAddressBody.address, { size: 20 }),
+            } satisfies Insertable<Tables['verifications']>
+        } catch {}
     })
 }
 
