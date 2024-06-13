@@ -15,11 +15,12 @@
     "dependencies": {
         "@biomejs/biome": "^1.7.3",
         "@commander-js/extra-typings": "^12.1.0",
-        "@farcaster/hub-nodejs": "^0.11.12",
+        "@farcaster/hub-nodejs": "^0.11.16",
         "@farcaster/shuttle": "^0.2.8",
         "bullmq": "^5.7.14",
         "commander": "^12.1.0",
         "dotenv": "^16.4.5",
+        "ioredis": "^5.4.1",
         "kysely": "^0.27.3",
         "neverthrow": "^6.2.1",
         "pino": "^9.1.0",

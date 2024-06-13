@@ -20,7 +20,6 @@ import {
     type MessageState,
     RedisClient,
     type StoreMessageOperation,
-    getDbClient,
     getHubClient,
 } from '@farcaster/shuttle'
 import type { Queue } from 'bullmq'
@@ -45,6 +44,7 @@ import {
     deleteVerifications,
     insertVerifications,
 } from './processors/verification.ts'
+import { getDbClient } from './shuttle'
 import { getQueue, getWorker } from './worker.ts'
 
 const hubId = 'shuttle'
