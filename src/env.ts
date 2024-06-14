@@ -36,3 +36,7 @@ export const MAX_EVENTS_PER_FETCH = Number.parseInt(
 export const MESSAGE_PROCESSING_CONCURRENCY = Number.parseInt(
     process.env.MESSAGE_PROCESSING_CONCURRENCY || '10',
 )
+
+export const MAX_CONNECTIONS = Number.parseInt(
+    process.env.MAX_CONNECTIONS || '10',
+)
