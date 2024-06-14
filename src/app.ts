@@ -55,11 +55,15 @@ export class App implements MessageHandler {
     private streamConsumer: HubEventStreamConsumer
     private readonly hubId
 
-    constructor(
-        redis: RedisClient,
-        hubSubscriber: HubSubscriber,
-        streamConsumer: HubEventStreamConsumer,
-    ) {
+    constructor({
+        redis,
+        hubSubscriber,
+        streamConsumer,
+    }: {
+        redis: RedisClient
+        hubSubscriber: HubSubscriber
+        streamConsumer: HubEventStreamConsumer
+    }) {
         this.redis = redis
         this.hubSubscriber = hubSubscriber
         this.hubId = hubId
@@ -90,13 +94,13 @@ export class App implements MessageHandler {
             totalShards,
             shardIndex,
         )
-        const streamConsumer = new HubEventStreamConsumer(
+        const streamConsumer = new HubEventStreamConsumer({
             hub,
-            eventStreamForRead,
+            eventStream: eventStreamForRead,
             shardKey,
-        )
+        })
 
-        return new App(redis, hubSubscriber, streamConsumer)
+        return new App({ redis, hubSubscriber, streamConsumer })
     }
 
     static async processMessagesOfType(
@@ -208,11 +212,10 @@ export class App implements MessageHandler {
             throw new Error('Hub client is not initialized')
         }
 
-        const reconciler = new MessageReconciliation(
-            this.hubSubscriber.hubClient,
-            db,
+        const reconciler = new MessageReconciliation({
+            client: this.hubSubscriber.hubClient,
             log,
-        )
+        })
         for (const fid of fids) {
             await reconciler.reconcileMessagesForFid(
                 fid,

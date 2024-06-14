@@ -258,13 +258,19 @@ export class HubEventStreamConsumer {
     private stream: EventStreamConnection
     private log: pino.Logger
 
-    constructor(
-        hub: HubClient,
-        eventStream: EventStreamConnection,
-        shardKey: string,
-        options: EventStreamConsumerOptions = {},
-        logger: pino.Logger = log,
-    ) {
+    constructor({
+        hub,
+        eventStream,
+        shardKey,
+        options = {},
+        logger = log,
+    }: {
+        hub: HubClient
+        eventStream: EventStreamConnection
+        shardKey: string
+        options?: EventStreamConsumerOptions
+        logger?: pino.Logger
+    }) {
         this.hub = hub
         this.stream = eventStream
         this.streamKey = `hub:${this.hub.host}:evt:msg:${shardKey}`
