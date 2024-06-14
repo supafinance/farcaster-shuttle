@@ -93,10 +93,10 @@ export class MessageReconciliation {
 
             switch (type) {
                 case MessageType.CAST_ADD:
-                    this.log.info(
-                        `Reconciling ${messageHashes.length} cast messages for FID ${fid}`,
-                    )
-                    break
+                    // this.log.info(
+                    //     `Reconciling ${messageHashes.length} cast messages for FID ${fid}`,
+                    // )
+                    continue
                 case MessageType.REACTION_ADD:
                     this.log.info(
                         `Reconciling ${messageHashes.length} reaction messages for FID ${fid}`,

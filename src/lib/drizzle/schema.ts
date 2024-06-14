@@ -53,7 +53,7 @@ export const userDataRelations = relations(userData, ({ many }) => ({
 
 export const links = pgTable('links', {
     id: serial('id').primaryKey(),
-    hash: varchar('hash', { length: 256 }).$type<Hex>(),
+    // hash: varchar('hash', { length: 256 }).$type<Hex>(),
     fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
     targetFid: decimal('target_fid', { precision: 12, scale: 0 }).notNull(),
     createdAt: timestamp('created_at', { mode: 'string' })
@@ -83,7 +83,7 @@ export const linkRelations = relations(links, ({ one }) => ({
 
 export const verifications = pgTable('verifications', {
     id: serial('id').primaryKey(),
-    hash: varchar('hash', { length: 256 }).$type<Hex>(),
+    // hash: varchar('hash', { length: 256 }).$type<Hex>(),
     createdAt: timestamp('created_at', { mode: 'string' })
         .notNull()
         .defaultNow(),
