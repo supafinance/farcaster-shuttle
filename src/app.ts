@@ -144,10 +144,10 @@ export class App implements MessageHandler {
         isNew: boolean,
         wasMissed: boolean,
     ): Promise<void> {
-        if (!isNew) {
-            // Message was already in the db, no-op
-            return
-        }
+        // if (!isNew) {
+        //     // Message was already in the db, no-op
+        //     return
+        // }
 
         if (message.data?.type) {
             await App.processMessagesOfType(

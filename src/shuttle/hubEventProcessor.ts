@@ -13,13 +13,7 @@ import {
     isVerificationAddAddressMessage,
     isVerificationRemoveMessage,
 } from '@farcaster/hub-nodejs'
-import { log } from '../log'
-import {
-    type MessageHandler,
-    type MessageState,
-    type StoreMessageOperation,
-    storeMessage,
-} from './'
+import type { MessageHandler, MessageState, StoreMessageOperation } from './'
 import type { DB } from './db'
 
 export async function processHubEvent(
@@ -137,12 +131,13 @@ async function processMessage({
         if (deletedMessages.length > 0) {
             await Promise.all(
                 deletedMessages.map(async (deletedMessage) => {
-                    const isNew = await storeMessage({
-                        message: deletedMessage,
-                        trx: trx,
-                        operation: 'delete',
-                        log,
-                    })
+                    // const isNew = await storeMessage({
+                    //     message: deletedMessage,
+                    //     trx: trx,
+                    //     operation: 'delete',
+                    //     log,
+                    // })
+                    const isNew = true
                     const state = getMessageState(deletedMessage, 'delete')
                     await handler.handleMessageMerge(
                         deletedMessage,
@@ -155,12 +150,13 @@ async function processMessage({
                 }),
             )
         }
-        const isNew = await storeMessage({
-            message,
-            trx,
-            operation,
-            log,
-        })
+        // const isNew = await storeMessage({
+        //     message,
+        //     trx,
+        //     operation,
+        //     log,
+        // })
+        const isNew = true
         const state = getMessageState(message, operation)
         await handler.handleMessageMerge(
             message,
