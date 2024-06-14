@@ -159,7 +159,7 @@ export class App implements MessageHandler {
         const messageDesc = wasMissed
             ? `missed message (${operation})`
             : `message (${operation})`
-        log.info(
+        log.debug(
             `${state} ${messageDesc} ${bytesToHexString(
                 message.hash,
             )._unsafeUnwrap()} (type ${message.data?.type})`,
