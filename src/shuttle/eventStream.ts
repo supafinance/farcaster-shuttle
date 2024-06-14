@@ -2,6 +2,7 @@ import { HubEvent, extractEventTimestamp } from '@farcaster/hub-nodejs'
 import { type Cluster, type Redis, ReplyError } from 'ioredis'
 import type { Result } from 'neverthrow'
 import type { pino } from 'pino'
+import { MAX_EVENTS_PER_FETCH, MESSAGE_PROCESSING_CONCURRENCY } from '../env.ts'
 import { log } from '../log'
 import { statsd } from '../statsd'
 import { inBatchesOf, sleep } from '../utils'
@@ -225,8 +226,6 @@ export class EventStreamConnection {
 }
 
 const GROUP_NAME = 'hub_events'
-const MAX_EVENTS_PER_FETCH = 20
-const MESSAGE_PROCESSING_CONCURRENCY = 20
 const EVENT_PROCESSING_TIMEOUT = 10_000 // How long before retrying processing (millis)
 const EVENT_DELETION_THRESHOLD = 1000 * 60 * 60 * 24 // 1 day
 

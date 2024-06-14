@@ -1,16 +1,18 @@
-import type { AppDb } from '../db.ts'
+import { desc } from 'drizzle-orm'
+import { db } from '../lib/drizzle'
+import { events } from '../lib/drizzle/schema.ts'
 import { log } from '../log.ts'
 
 /**
  * Insert an event ID in the database
  * @param eventId Hub event ID
  */
-export async function insertEvent(eventId: number, db: AppDb) {
+export async function insertEvent(eventId: number) {
     try {
         await db
-            .insertInto('events')
+            .insert(events)
             .values({ id: eventId })
-            .onConflict((oc) => oc.column('id').doNothing())
+            .onConflictDoNothing()
             .execute()
 
         log.debug(`EVENT INSERTED -- ${eventId}`)
@@ -23,16 +25,15 @@ export async function insertEvent(eventId: number, db: AppDb) {
  * Get the latest event ID from the database
  * @returns Latest event ID
  */
-export async function getLatestEvent(db: AppDb): Promise<number | undefined> {
+export async function getLatestEvent(): Promise<number | undefined> {
     try {
-        const event = await db
-            .selectFrom('events')
-            .selectAll()
-            .orderBy('id', 'desc')
+        const eventArray = await db
+            .select()
+            .from(events)
+            .orderBy(desc(events.id))
             .limit(1)
-            .executeTakeFirst()
 
-        return event?.id
+        return eventArray?.[0]?.id
     } catch (error) {
         log.error(error, 'ERROR GETTING LATEST EVENT')
         return undefined

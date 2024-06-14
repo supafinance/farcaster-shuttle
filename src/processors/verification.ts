@@ -1,33 +1,25 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
+import { and, eq } from 'drizzle-orm'
 import { type Address, toHex } from 'viem'
-import type { AppDb } from '../db.ts'
+import { db } from '../lib/drizzle'
+import { verifications } from '../lib/drizzle/schema.ts'
 import { log } from '../log.ts'
 import { formatVerifications } from './utils.ts'
 
 /**
  * Insert a new verification in the database
- * @param msg Hub event in JSON format
+ * @param {Message[]} msgs Hub events in JSON format
  */
-export async function insertVerifications({
-    msgs,
-    db,
-}: { msgs: Message[]; db: AppDb }) {
+export async function insertVerifications(msgs: Message[]) {
     log.info('INSERTING VERIFICATIONS')
-    const verifications = formatVerifications(msgs)
+    const values = formatVerifications(msgs)
 
-    if (!verifications) {
+    if (!values) {
         return
     }
 
     try {
-        await db
-            .insertInto('verifications')
-            .values(verifications)
-            .onConflict((oc) =>
-                oc.columns(['fid', 'signerAddress']).doNothing(),
-            )
-            .execute()
-
+        await db.insert(verifications).values(values).onConflictDoNothing()
         log.debug('VERIFICATIONS INSERTED')
     } catch (error) {
         log.error(error, 'ERROR INSERTING VERIFICATION')
@@ -35,13 +27,10 @@ export async function insertVerifications({
 }
 
 /**
- * Delete a verification from the database
- * @param msg Hub event in JSON format
+ * Soft delete a verification from the database by setting the deletedAt field
+ * @param {Message[]} msgs Hub events in JSON format
  */
-export async function deleteVerifications({
-    msgs,
-    db,
-}: { msgs: Message[]; db: AppDb }) {
+export async function deleteVerifications(msgs: Message[]) {
     log.info('DELETING VERIFICATIONS')
     try {
         for (const msg of msgs) {
@@ -59,14 +48,18 @@ export async function deleteVerifications({
             }
 
             await db
-                .updateTable('verifications')
+                .update(verifications)
                 .set({
                     deletedAt: new Date(
                         fromFarcasterTime(data.timestamp)._unsafeUnwrap(),
-                    ),
+                    ).toISOString(),
                 })
-                .where('signerAddress', '=', address)
-                .where('fid', '=', data.fid)
+                .where(
+                    and(
+                        eq(verifications.signerAddress, address),
+                        eq(verifications.fid, String(data.fid)),
+                    ),
+                )
                 .execute()
         }
 

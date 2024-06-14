@@ -1,6 +1,5 @@
 import * as process from 'node:process'
 import url from 'node:url'
-// import { Command } from 'commander'
 import { Command } from '@commander-js/extra-typings'
 import {
     type HubEvent,
@@ -10,9 +9,9 @@ import {
 } from '@farcaster/hub-nodejs'
 import type { Queue } from 'bullmq'
 import { ok } from 'neverthrow'
-import { type AppDb, migrateToLatest } from './db.ts'
 import {
     BACKFILL_FIDS,
+    BATCH_SIZE,
     CONCURRENCY,
     HUB_HOST,
     HUB_SSL,
@@ -22,6 +21,7 @@ import {
     SHARD_INDEX,
     TOTAL_SHARDS,
 } from './env.ts'
+import { db } from './lib/drizzle'
 import { log } from './log.ts'
 import { deleteLinks, insertLinks } from './processors/link.ts'
 import { deleteReactions, insertReactions } from './processors/reaction.ts'
@@ -31,10 +31,8 @@ import {
     insertVerifications,
 } from './processors/verification.ts'
 import {
-    type DB,
     EventStreamConnection,
     EventStreamHubSubscriber,
-    HubEventProcessor,
     HubEventStreamConsumer,
     type HubSubscriber,
     type MessageHandler,
@@ -42,8 +40,9 @@ import {
     type MessageState,
     RedisClient,
     type StoreMessageOperation,
-    getDbClient,
     getHubClient,
+    handleMissingMessage,
+    processHubEvent,
 } from './shuttle'
 import { getQueue, getWorker } from './worker.ts'
 
@@ -51,18 +50,15 @@ const hubId = 'shuttle'
 
 export class App implements MessageHandler {
     public redis: RedisClient
-    private readonly db: DB
     private hubSubscriber: HubSubscriber
     private streamConsumer: HubEventStreamConsumer
     private readonly hubId
 
     constructor(
-        db: DB,
         redis: RedisClient,
         hubSubscriber: HubSubscriber,
         streamConsumer: HubEventStreamConsumer,
     ) {
-        this.db = db
         this.redis = redis
         this.hubSubscriber = hubSubscriber
         this.hubId = hubId
@@ -70,14 +66,12 @@ export class App implements MessageHandler {
     }
 
     static create(
-        dbUrl: string,
         redisUrl: string,
         hubUrl: string,
         totalShards: number,
         shardIndex: number,
         hubSSL = false,
     ) {
-        const db = getDbClient(dbUrl)
         const hub = getHubClient(hubUrl, { ssl: hubSSL })
         const redis = RedisClient.create(redisUrl)
         const eventStreamForWrite = new EventStreamConnection(redis.client)
@@ -100,13 +94,12 @@ export class App implements MessageHandler {
             shardKey,
         )
 
-        return new App(db, redis, hubSubscriber, streamConsumer)
+        return new App(redis, hubSubscriber, streamConsumer)
     }
 
     static async processMessagesOfType(
         messages: Message[],
         type: MessageType,
-        db: AppDb,
     ): Promise<void> {
         switch (type) {
             // case MessageType.CAST_ADD:
@@ -116,25 +109,25 @@ export class App implements MessageHandler {
             //     await deleteCasts(messages, db)
             //     break
             case MessageType.REACTION_ADD:
-                await insertReactions(messages, db)
+                await insertReactions(messages)
                 break
             case MessageType.REACTION_REMOVE:
-                await deleteReactions(messages, db)
+                await deleteReactions(messages)
                 break
             case MessageType.VERIFICATION_ADD_ETH_ADDRESS:
-                await insertVerifications({ msgs: messages, db })
+                await insertVerifications(messages)
                 break
             case MessageType.VERIFICATION_REMOVE:
-                await deleteVerifications({ msgs: messages, db })
+                await deleteVerifications(messages)
                 break
             case MessageType.USER_DATA_ADD:
-                await insertUserDatas({ msgs: messages, db })
+                await insertUserDatas(messages)
                 break
             case MessageType.LINK_ADD:
-                await insertLinks({ msgs: messages, db })
+                await insertLinks(messages)
                 break
             case MessageType.LINK_REMOVE:
-                await deleteLinks({ msgs: messages, db })
+                await deleteLinks(messages)
                 break
             default:
                 log.debug(`No handler for message type ${type}`)
@@ -144,7 +137,7 @@ export class App implements MessageHandler {
     // todo: checkout christopher's implementation
     async handleMessageMerge(
         message: Message,
-        txn: DB,
+        txn: any,
         operation: StoreMessageOperation,
         state: MessageState,
         isNew: boolean,
@@ -155,10 +148,11 @@ export class App implements MessageHandler {
             return
         }
 
-        const appDB = txn as unknown as AppDb // Need this to make typescript happy, not clean way to "inherit" table types
-
         if (message.data?.type) {
-            await App.processMessagesOfType([message], message.data.type, appDB)
+            await App.processMessagesOfType(
+                [message],
+                message.data.type /* txn */,
+            )
         }
 
         const messageDesc = wasMissed
@@ -172,7 +166,6 @@ export class App implements MessageHandler {
     }
 
     async start() {
-        await this.ensureMigrations()
         // Hub subscriber listens to events from the hub and writes them to a redis stream. This allows for scaling by
         // splitting events to multiple streams
         await this.hubSubscriber.start()
@@ -196,7 +189,7 @@ export class App implements MessageHandler {
 
         const reconciler = new MessageReconciliation(
             this.hubSubscriber.hubClient,
-            this.db,
+            db,
             log,
         )
         for (const fid of fids) {
@@ -204,11 +197,7 @@ export class App implements MessageHandler {
                 fid,
                 async (message, missingInDb, prunedInDb, revokedInDb) => {
                     if (missingInDb) {
-                        await HubEventProcessor.handleMissingMessage(
-                            this.db,
-                            message,
-                            this,
-                        )
+                        await handleMissingMessage(db, message, this)
                     } else if (prunedInDb || revokedInDb) {
                         const messageDesc = prunedInDb
                             ? 'pruned'
@@ -227,7 +216,6 @@ export class App implements MessageHandler {
     }
 
     async backfillFids(fids: number[], backfillQueue: Queue) {
-        await this.ensureMigrations()
         const startedAt = Date.now()
         if (fids.length === 0) {
             const maxFidResult = await this.hubSubscriber.hubClient?.getFids({
@@ -253,14 +241,13 @@ export class App implements MessageHandler {
             }
             log.debug(`Queuing up fids upto: ${maxFid}`)
             // create an array of arrays in batches of 100 upto maxFid
-            const batchSize = 20
             const fids = Array.from(
-                { length: Math.ceil(maxFid / batchSize) },
-                (_, i) => i * batchSize,
+                { length: Math.ceil(maxFid / BATCH_SIZE) },
+                (_, i) => i * BATCH_SIZE,
             ).map((fid) => fid + 1)
             for (const start of fids) {
                 const subset = Array.from(
-                    { length: batchSize },
+                    { length: BATCH_SIZE },
                     (_, i) => start + i,
                 )
                 await backfillQueue.add('reconcile', { fids: subset })
@@ -270,14 +257,6 @@ export class App implements MessageHandler {
         }
         await backfillQueue.add('completionMarker', { startedAt })
         log.info('Backfill jobs queued')
-    }
-
-    async ensureMigrations() {
-        const result = await migrateToLatest(this.db, log)
-        if (result.isErr()) {
-            log.error('Failed to migrate database', result.error)
-            throw result.error
-        }
     }
 
     async stop() {
@@ -293,7 +272,7 @@ export class App implements MessageHandler {
     }
 
     private async processHubEvent(hubEvent: HubEvent) {
-        await HubEventProcessor.processHubEvent(this.db, hubEvent, this)
+        await processHubEvent(db, hubEvent, this)
     }
 }
 
@@ -308,7 +287,6 @@ if (
             `Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
         const app = App.create(
-            POSTGRES_URL,
             REDIS_URL,
             HUB_HOST,
             TOTAL_SHARDS,
@@ -324,7 +302,6 @@ if (
             `Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
         const app = App.create(
-            POSTGRES_URL,
             REDIS_URL,
             HUB_HOST,
             TOTAL_SHARDS,
@@ -349,7 +326,6 @@ if (
             `Starting worker connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
         const app = App.create(
-            POSTGRES_URL,
             REDIS_URL,
             HUB_HOST,
             TOTAL_SHARDS,

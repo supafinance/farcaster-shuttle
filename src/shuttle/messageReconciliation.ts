@@ -3,19 +3,22 @@ import {
     type Message,
     MessageType,
 } from '@farcaster/hub-nodejs'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { pino } from 'pino'
+import { type Hex, toHex } from 'viem'
+import { messages as messagesTable } from '../lib/drizzle/schema.ts'
 import type { DB, MessageRow } from './db'
 
 const MAX_PAGE_SIZE = 3_000
 
 type DBMessage = {
-    hash: Uint8Array
-    prunedAt: Date | null
-    revokedAt: Date | null
-    fid: number
-    type: MessageType
-    raw: Uint8Array
-    signer: Uint8Array
+    hash: Hex | null
+    prunedAt: string | null
+    revokedAt: string | null
+    fid: string
+    type: MessageType | number
+    raw: string | null
+    signer: Hex | null
 }
 
 // Ensures that all messages for a given FID are present in the database. Can be used for both backfilling and reconciliation.
@@ -38,7 +41,7 @@ export class MessageReconciliation {
             prunedInDb: boolean,
             revokedInDb: boolean,
         ) => Promise<void>,
-        onDbMessage: (
+        onDbMessage?: (
             message: DBMessage,
             missingInHub: boolean,
         ) => Promise<void>,
@@ -69,7 +72,7 @@ export class MessageReconciliation {
             prunedInDb: boolean,
             revokedInDb: boolean,
         ) => Promise<void>,
-        onDbMessage: (
+        onDbMessage?: (
             message: DBMessage,
             missingInHub: boolean,
         ) => Promise<void>,
@@ -82,7 +85,7 @@ export class MessageReconciliation {
             fid,
             type,
         )) {
-            const messageHashes = messages.map((msg) => msg.hash)
+            const messageHashes = messages.map((msg) => toHex(msg.hash))
 
             if (messageHashes.length === 0) {
                 this.log.info(`No messages of type ${type} for FID ${fid}`)
@@ -90,14 +93,24 @@ export class MessageReconciliation {
             }
 
             const dbMessages = await this.db
-                .selectFrom('messages')
-                .select(['prunedAt', 'revokedAt', 'hash', 'fid', 'type', 'raw'])
-                .where('hash', 'in', messageHashes)
+                .select({
+                    prunedAt: messagesTable.prunedAt,
+                    revokedAt: messagesTable.revokedAt,
+                    hash: messagesTable.hash,
+                    fid: messagesTable.fid,
+                    type: messagesTable.type,
+                    raw: messagesTable.raw,
+                })
+                .from(messagesTable)
+                .where(inArray(messagesTable.hash, messageHashes))
                 .execute()
 
             const dbMessageHashes = dbMessages.reduce(
                 (acc, msg) => {
-                    const key = Buffer.from(msg.hash).toString('hex')
+                    if (msg.hash === null) {
+                        return acc
+                    }
+                    const key = toHex(msg.hash)
                     acc[key] = msg
                     return acc
                 },
@@ -139,13 +152,16 @@ export class MessageReconciliation {
         // Next, reconcile messages that are in the database but not in the hub
         const dbMessages = await this.allActiveDbMessagesOfTypeForFid(fid, type)
         for (const dbMessage of dbMessages) {
-            const key = Buffer.from(dbMessage.hash).toString('hex')
-            await onDbMessage(dbMessage, !hubMessagesByHash[key])
+            if (dbMessage.hash === null) {
+                continue
+            }
+            const key = toHex(dbMessage.hash)
+            await onDbMessage?.(dbMessage, !hubMessagesByHash[key])
         }
     }
 
     private async *allHubMessagesOfTypeForFid(fid: number, type: MessageType) {
-        let fn
+        let fn: any
         switch (type) {
             case MessageType.CAST_ADD:
                 fn = this.getAllCastMessagesByFidInBatchesOf
@@ -331,22 +347,27 @@ export class MessageReconciliation {
                 typeSet = [...typeSet, MessageType.VERIFICATION_REMOVE]
                 break
         }
+
         return this.db
-            .selectFrom('messages')
-            .select([
-                'messages.prunedAt',
-                'messages.revokedAt',
-                'messages.hash',
-                'messages.type',
-                'messages.fid',
-                'messages.raw',
-                'messages.signer',
-            ])
-            .where('messages.fid', '=', fid)
-            .where('messages.type', 'in', typeSet)
-            .where('messages.prunedAt', 'is', null)
-            .where('messages.revokedAt', 'is', null)
-            .where('messages.deletedAt', 'is', null)
+            .select({
+                prunedAt: messagesTable.prunedAt,
+                revokedAt: messagesTable.revokedAt,
+                hash: messagesTable.hash,
+                fid: messagesTable.fid,
+                type: messagesTable.type,
+                raw: messagesTable.raw,
+                signer: messagesTable.signer,
+            })
+            .from(messagesTable)
+            .where(
+                and(
+                    eq(messagesTable.fid, String(fid)),
+                    inArray(messagesTable.type, typeSet),
+                    isNull(messagesTable.prunedAt),
+                    isNull(messagesTable.revokedAt),
+                    isNull(messagesTable.deletedAt),
+                ),
+            )
             .execute()
     }
 }

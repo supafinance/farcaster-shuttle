@@ -26,3 +26,10 @@ export const STATSD_METRICS_PREFIX =
     process.env.STATSD_METRICS_PREFIX || 'shuttle.'
 
 export const CONCURRENCY = Number.parseInt(process.env.CONCURRENCY || '2')
+export const BATCH_SIZE = Number.parseInt(process.env.BATCH_SIZE || '10')
+export const MAX_EVENTS_PER_FETCH = Number.parseInt(
+    process.env.MAX_EVENTS_PER_FETCH || '10',
+)
+export const MESSAGE_PROCESSING_CONCURRENCY = Number.parseInt(
+    process.env.MESSAGE_PROCESSING_CONCURRENCY || '10',
+)

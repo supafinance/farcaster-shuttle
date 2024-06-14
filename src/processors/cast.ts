@@ -1,23 +1,20 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
-
-import type { AppDb } from '../db'
-import { log } from '../log'
+import { eq } from 'drizzle-orm'
+import { toHex } from 'viem'
+import { db } from '../lib/drizzle'
+import { casts } from '../lib/drizzle/schema.ts'
+import { log } from '../log.ts'
 import { formatCasts } from './utils'
 
 /**
  * Insert casts in the database
  * @param {Message[]} msgs Hub events in JSON format
- * @param {AppDb} db Database connection
  */
-export async function insertCasts(msgs: Message[], db: AppDb) {
-    const casts = formatCasts(msgs)
+export async function insertCasts(msgs: Message[]) {
+    const values = formatCasts(msgs)
 
     try {
-        await db
-            .insertInto('casts')
-            .values(casts)
-            .onConflict((oc) => oc.column('hash').doNothing())
-            .execute()
+        await db.insert(casts).values(values).onConflictDoNothing().execute()
 
         log.debug('CASTS INSERTED')
     } catch (error) {
@@ -28,9 +25,8 @@ export async function insertCasts(msgs: Message[], db: AppDb) {
 /**
  * Add deletedAt to a cast in the database
  * @param {Message[]} msgs Hub events in JSON format
- * @param {AppDb} db Database connection
  */
-export async function deleteCasts(msgs: Message[], db: AppDb) {
+export async function deleteCasts(msgs: Message[]) {
     try {
         for (const msg of msgs) {
             const data = msg.data
@@ -40,13 +36,13 @@ export async function deleteCasts(msgs: Message[], db: AppDb) {
             }
 
             await db
-                .updateTable('casts')
+                .update(casts)
                 .set({
                     deletedAt: new Date(
                         fromFarcasterTime(data.timestamp)._unsafeUnwrap(),
-                    ),
+                    ).toISOString(),
                 })
-                .where('hash', '=', data.castRemoveBody?.targetHash)
+                .where(eq(casts.hash, toHex(data.castRemoveBody?.targetHash)))
                 .execute()
         }
 

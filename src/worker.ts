@@ -1,4 +1,4 @@
-import { type Job, Queue, Worker } from 'bullmq'
+import { type Job, Queue, Worker } from 'bullmq' // todo: replace with kafka (library built for redis)
 import type { Redis } from 'ioredis' // todo: replace with kafka
 import type { pino } from 'pino'
 import type { App } from './app.ts'

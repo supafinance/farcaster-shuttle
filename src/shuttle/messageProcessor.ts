@@ -1,5 +1,7 @@
 import { Message, validations } from '@farcaster/hub-nodejs'
 import type { pino } from 'pino'
+import { toHex } from 'viem'
+import { messages } from '../lib/drizzle/schema.ts'
 import {
     bytesToHex,
     convertProtobufMessageBodyToJson,
@@ -8,6 +10,7 @@ import {
 import type { StoreMessageOperation } from './'
 import type { DB, InsertableMessageRow } from './db'
 
+// biome-ignore lint/complexity/noStaticOnlyClass: todo: update to pure functions
 export class MessageProcessor {
     static async storeMessage(
         message: Message,
@@ -46,78 +49,75 @@ export class MessageProcessor {
             case 'merge':
                 break
             case 'delete':
-                opData.deletedAt = new Date()
+                opData.deletedAt = new Date().toISOString()
                 break
             case 'prune':
-                opData.prunedAt = new Date()
+                opData.prunedAt = new Date().toISOString()
                 break
             case 'revoke':
-                opData.revokedAt = new Date()
+                opData.revokedAt = new Date().toISOString()
                 break
         }
 
-        // @ts-ignore
         const result = await trx
-            .insertInto('messages')
+            .insert(messages)
             .values({
-                fid: message.data.fid,
-                type: message.data.type,
-                timestamp: farcasterTimeToDate(message.data.timestamp),
-                hashScheme: message.hashScheme,
-                signatureScheme: message.signatureScheme,
-                hash: message.hash,
-                signer: message.signer,
-                raw: Message.encode(message).finish(),
+                fid: String(message.data.fid),
+                type: Number(message.data.type),
+                timestamp: (
+                    farcasterTimeToDate(message.data.timestamp) ?? new Date()
+                ).toISOString(),
+                hashScheme: Number(message.hashScheme),
+                signatureScheme: Number(message.signatureScheme),
+                hash: toHex(message.hash),
+                signer: toHex(message.signer),
+                raw: String(Message.encode(message).finish()),
                 body,
-                ...opData,
             })
-            .returning(['id'])
-            .onConflict((oc) =>
-                oc
-                    .columns(['hash', 'fid', 'type'])
-                    // In case the signer was changed, make sure to always update it
-                    .doUpdateSet({
-                        signatureScheme: message.signatureScheme,
-                        signer: message.signer,
-                        raw: Message.encode(message).finish(),
-                        ...opData,
-                    })
-                    .where(({ eb, or }) =>
-                        or([
-                            eb('excluded.deletedAt', 'is not', null).and(
-                                'messages.deletedAt',
-                                'is',
-                                null,
-                            ),
-                            eb('excluded.deletedAt', 'is', null).and(
-                                'messages.deletedAt',
-                                'is not',
-                                null,
-                            ),
-                            eb('excluded.prunedAt', 'is not', null).and(
-                                'messages.prunedAt',
-                                'is',
-                                null,
-                            ),
-                            eb('excluded.prunedAt', 'is', null).and(
-                                'messages.prunedAt',
-                                'is not',
-                                null,
-                            ),
-                            eb('excluded.revokedAt', 'is not', null).and(
-                                'messages.revokedAt',
-                                'is',
-                                null,
-                            ),
-                            eb('excluded.revokedAt', 'is', null).and(
-                                'messages.revokedAt',
-                                'is not',
-                                null,
-                            ),
-                        ]),
-                    ),
-            )
-            .executeTakeFirst()
+            .onConflictDoUpdate({
+                target: [messages.hash, messages.fid, messages.type],
+                set: {
+                    signatureScheme: message.signatureScheme,
+                    signer: toHex(message.signer),
+                    raw: String(Message.encode(message).finish()),
+                    ...opData,
+                },
+                // .where(({ eb, or }) =>
+                //     or([
+                //         eb('excluded.deletedAt', 'is not', null).and(
+                //             'messages.deletedAt',
+                //             'is',
+                //             null,
+                //         ),
+                //         eb('excluded.deletedAt', 'is', null).and(
+                //             'messages.deletedAt',
+                //             'is not',
+                //             null,
+                //         ),
+                //         eb('excluded.prunedAt', 'is not', null).and(
+                //             'messages.prunedAt',
+                //             'is',
+                //             null,
+                //         ),
+                //         eb('excluded.prunedAt', 'is', null).and(
+                //             'messages.prunedAt',
+                //             'is not',
+                //             null,
+                //         ),
+                //         eb('excluded.revokedAt', 'is not', null).and(
+                //             'messages.revokedAt',
+                //             'is',
+                //             null,
+                //         ),
+                //         eb('excluded.revokedAt', 'is', null).and(
+                //             'messages.revokedAt',
+                //             'is not',
+                //             null,
+                //         ),
+                //     ]),
+                // ),
+            })
+            .returning({ id: messages.id })
         return !!result
     }
 }

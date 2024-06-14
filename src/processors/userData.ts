@@ -1,11 +1,9 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
-import type { AppDb } from '../db.ts'
+import { db } from '../lib/drizzle'
+import { userData } from '../lib/drizzle/schema.ts'
 import { log } from '../log.ts'
 
-export async function insertUserDatas({
-    msgs,
-    db,
-}: { msgs: Message[]; db: AppDb }) {
+export async function insertUserDatas(msgs: Message[]) {
     log.info('INSERTING USER DATA')
     await Promise.all(
         msgs.map(async (msg) => {
@@ -13,9 +11,17 @@ export async function insertUserDatas({
             if (!data || !data.userDataBody) {
                 return
             }
-            const userData = data.userDataBody
+            const value = data.userDataBody
 
-            switch (userData.type) {
+            if (!data.fid) {
+                return
+            }
+
+            const formattedTimestamp = new Date(
+                fromFarcasterTime(data.timestamp)._unsafeUnwrap(),
+            ).toISOString()
+
+            switch (value.type) {
                 // NONE
                 case 0: {
                     break
@@ -24,29 +30,20 @@ export async function insertUserDatas({
                 case 1: {
                     try {
                         await db
-                            .insertInto('userData')
+                            .insert(userData)
                             .values({
-                                fid: data.fid,
-                                pfp: userData.value,
-                                timestamp: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
-                                pfpUpdatedAt: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
+                                fid: String(data.fid),
+                                pfp: String(value.value),
+                                timestamp: formattedTimestamp,
+                                pfpUpdatedAt: formattedTimestamp,
                             })
-                            .onConflict((oc) =>
-                                oc.columns(['fid']).doUpdateSet((eb) => ({
-                                    pfp: eb.ref('excluded.pfp'),
-                                    pfpUpdatedAt: eb.ref(
-                                        'excluded.pfpUpdatedAt',
-                                    ),
-                                })),
-                            )
+                            .onConflictDoUpdate({
+                                target: userData.fid,
+                                set: {
+                                    pfp: value.value,
+                                    pfpUpdatedAt: formattedTimestamp,
+                                },
+                            })
                             .execute()
                     } catch (error) {
                         log.error(error, 'ERROR INSERTING USER DATA')
@@ -57,29 +54,20 @@ export async function insertUserDatas({
                 case 2: {
                     try {
                         await db
-                            .insertInto('userData')
+                            .insert(userData)
                             .values({
-                                fid: data.fid,
-                                displayName: userData.value,
-                                timestamp: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
-                                displayNameUpdatedAt: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
+                                fid: String(data.fid),
+                                displayName: value.value,
+                                timestamp: formattedTimestamp,
+                                displayNameUpdatedAt: formattedTimestamp,
                             })
-                            .onConflict((oc) =>
-                                oc.columns(['fid']).doUpdateSet((eb) => ({
-                                    displayName: eb.ref('excluded.displayName'),
-                                    displayNameUpdatedAt: eb.ref(
-                                        'excluded.displayNameUpdatedAt',
-                                    ),
-                                })),
-                            )
+                            .onConflictDoUpdate({
+                                target: userData.fid,
+                                set: {
+                                    displayName: value.value,
+                                    displayNameUpdatedAt: formattedTimestamp,
+                                },
+                            })
                             .execute()
 
                         log.debug('USER DATA INSERTED')
@@ -92,29 +80,20 @@ export async function insertUserDatas({
                 case 3: {
                     try {
                         await db
-                            .insertInto('userData')
+                            .insert(userData)
                             .values({
-                                fid: data.fid,
-                                bio: userData.value,
-                                timestamp: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
-                                bioUpdatedAt: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
+                                fid: String(data.fid),
+                                bio: value.value,
+                                timestamp: formattedTimestamp,
+                                bioUpdatedAt: formattedTimestamp,
                             })
-                            .onConflict((oc) =>
-                                oc.columns(['fid']).doUpdateSet((eb) => ({
-                                    bio: eb.ref('excluded.bio'),
-                                    bioUpdatedAt: eb.ref(
-                                        'excluded.bioUpdatedAt',
-                                    ),
-                                })),
-                            )
+                            .onConflictDoUpdate({
+                                target: userData.fid,
+                                set: {
+                                    bio: value.value,
+                                    bioUpdatedAt: formattedTimestamp,
+                                },
+                            })
                             .execute()
 
                         log.debug('USER DATA INSERTED')
@@ -127,29 +106,20 @@ export async function insertUserDatas({
                 case 5: {
                     try {
                         await db
-                            .insertInto('userData')
+                            .insert(userData)
                             .values({
-                                fid: data.fid,
-                                url: userData.value,
-                                timestamp: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
-                                urlUpdatedAt: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
+                                fid: String(data.fid),
+                                url: value.value,
+                                timestamp: formattedTimestamp,
+                                urlUpdatedAt: formattedTimestamp,
                             })
-                            .onConflict((oc) =>
-                                oc.columns(['fid']).doUpdateSet((eb) => ({
-                                    url: eb.ref('excluded.url'),
-                                    urlUpdatedAt: eb.ref(
-                                        'excluded.urlUpdatedAt',
-                                    ),
-                                })),
-                            )
+                            .onConflictDoUpdate({
+                                target: userData.fid,
+                                set: {
+                                    url: value.value,
+                                    urlUpdatedAt: formattedTimestamp,
+                                },
+                            })
                             .execute()
 
                         log.debug('USER DATA INSERTED')
@@ -162,29 +132,24 @@ export async function insertUserDatas({
                 case 6: {
                     try {
                         await db
-                            .insertInto('userData')
+                            .insert(userData)
                             .values({
-                                fid: data.fid,
-                                username: userData.value,
+                                fid: String(data.fid),
+                                username: value.value,
                                 timestamp: new Date(
                                     fromFarcasterTime(
                                         data.timestamp,
                                     )._unsafeUnwrap(),
-                                ),
-                                usernameUpdatedAt: new Date(
-                                    fromFarcasterTime(
-                                        data.timestamp,
-                                    )._unsafeUnwrap(),
-                                ),
+                                ).toISOString(),
+                                usernameUpdatedAt: formattedTimestamp,
                             })
-                            .onConflict((oc) =>
-                                oc.columns(['fid']).doUpdateSet((eb) => ({
-                                    username: eb.ref('excluded.username'),
-                                    usernameUpdatedAt: eb.ref(
-                                        'excluded.usernameUpdatedAt',
-                                    ),
-                                })),
-                            )
+                            .onConflictDoUpdate({
+                                target: userData.fid,
+                                set: {
+                                    username: value.value,
+                                    usernameUpdatedAt: formattedTimestamp,
+                                },
+                            })
                             .execute()
 
                         log.debug('USER DATA INSERTED')
