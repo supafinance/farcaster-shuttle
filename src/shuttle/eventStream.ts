@@ -42,7 +42,10 @@ export class EventStreamConnection {
     /**
      * Creates a consumer group for the given stream.
      */
-    async createGroup(key: string, consumerGroup: string) {
+    async createGroup({
+        key,
+        consumerGroup,
+    }: { key: string; consumerGroup: string }) {
         try {
             // Check if the group already exists
             const groups = (await this.client.xinfo('GROUPS', key)) as [
@@ -284,7 +287,10 @@ export class HubEventStreamConsumer {
     ) {
         this.stopped = false
         await this.stream.waitUntilReady()
-        await this.stream.createGroup(this.streamKey, this.groupName)
+        await this.stream.createGroup({
+            key: this.streamKey,
+            consumerGroup: this.groupName,
+        })
         void this._runLoop(onEvent)
     }
 
