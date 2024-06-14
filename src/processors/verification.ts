@@ -1,7 +1,7 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
 import { and, eq } from 'drizzle-orm'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { type Address, toHex } from 'viem'
-import { db } from '../lib/drizzle'
 import { verifications } from '../lib/drizzle/schema.ts'
 import { log } from '../log.ts'
 import { formatVerifications } from './utils.ts'
@@ -10,7 +10,10 @@ import { formatVerifications } from './utils.ts'
  * Insert a new verification in the database
  * @param {Message[]} msgs Hub events in JSON format
  */
-export async function insertVerifications(msgs: Message[]) {
+export async function insertVerifications({
+    msgs,
+    txn,
+}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
     log.info('INSERTING VERIFICATIONS')
     const values = formatVerifications(msgs)
 
@@ -19,7 +22,7 @@ export async function insertVerifications(msgs: Message[]) {
     }
 
     try {
-        await db.insert(verifications).values(values).onConflictDoNothing()
+        await txn.insert(verifications).values(values).onConflictDoNothing()
         log.debug('VERIFICATIONS INSERTED')
     } catch (error) {
         log.error(error, 'ERROR INSERTING VERIFICATION')
@@ -30,7 +33,10 @@ export async function insertVerifications(msgs: Message[]) {
  * Soft delete a verification from the database by setting the deletedAt field
  * @param {Message[]} msgs Hub events in JSON format
  */
-export async function deleteVerifications(msgs: Message[]) {
+export async function deleteVerifications({
+    msgs,
+    txn,
+}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
     log.info('DELETING VERIFICATIONS')
     try {
         for (const msg of msgs) {
@@ -47,7 +53,7 @@ export async function deleteVerifications(msgs: Message[]) {
                 return
             }
 
-            await db
+            await txn
                 .update(verifications)
                 .set({
                     deletedAt: new Date(

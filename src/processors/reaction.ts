@@ -1,7 +1,7 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
 import { and, eq } from 'drizzle-orm'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { toHex } from 'viem'
-import { db } from '../lib/drizzle'
 import { reactions } from '../lib/drizzle/schema.ts'
 import { log } from '../log'
 import { formatReactions } from './utils'
@@ -10,11 +10,14 @@ import { formatReactions } from './utils'
  * Insert a reaction in the database
  * @param {Message[]} msgs Hub events in JSON format
  */
-export async function insertReactions(msgs: Message[]) {
+export async function insertReactions({
+    msgs,
+    txn,
+}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
     const values = formatReactions(msgs)
 
     try {
-        await db
+        await txn
             .insert(reactions)
             .values(values)
             .onConflictDoNothing()
@@ -30,7 +33,10 @@ export async function insertReactions(msgs: Message[]) {
  * Soft delete a reaction in the database by setting the deletedAt field
  * @param {Message[]} msgs Hub events in JSON format
  */
-export async function deleteReactions(msgs: Message[]) {
+export async function deleteReactions({
+    msgs,
+    txn,
+}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
     try {
         for (const msg of msgs) {
             const data = msg.data
@@ -40,7 +46,7 @@ export async function deleteReactions(msgs: Message[]) {
             const reaction = data.reactionBody
 
             if (reaction.targetCastId) {
-                await db
+                await txn
                     .update(reactions)
                     .set({
                         deletedAt: new Date(
@@ -59,7 +65,7 @@ export async function deleteReactions(msgs: Message[]) {
                     )
                     .execute()
             } else if (reaction.targetUrl) {
-                await db
+                await txn
                     .update(reactions)
                     .set({
                         deletedAt: new Date(

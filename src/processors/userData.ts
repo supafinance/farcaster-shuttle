@@ -1,9 +1,12 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
-import { db } from '../lib/drizzle'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { userData } from '../lib/drizzle/schema.ts'
 import { log } from '../log.ts'
 
-export async function insertUserDatas(msgs: Message[]) {
+export async function insertUserDatas({
+    msgs,
+    txn,
+}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
     log.info('INSERTING USER DATA')
     await Promise.all(
         msgs.map(async (msg) => {
@@ -29,7 +32,7 @@ export async function insertUserDatas(msgs: Message[]) {
                 // PFP
                 case 1: {
                     try {
-                        await db
+                        await txn
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),
@@ -53,7 +56,7 @@ export async function insertUserDatas(msgs: Message[]) {
                 // DISPLAY
                 case 2: {
                     try {
-                        await db
+                        await txn
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),
@@ -79,7 +82,7 @@ export async function insertUserDatas(msgs: Message[]) {
                 // BIO
                 case 3: {
                     try {
-                        await db
+                        await txn
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),
@@ -105,7 +108,7 @@ export async function insertUserDatas(msgs: Message[]) {
                 // URL
                 case 5: {
                     try {
-                        await db
+                        await txn
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),
@@ -131,7 +134,7 @@ export async function insertUserDatas(msgs: Message[]) {
                 // USERNAME
                 case 6: {
                     try {
-                        await db
+                        await txn
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),

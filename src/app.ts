@@ -8,6 +8,7 @@ import {
     bytesToHexString,
 } from '@farcaster/hub-nodejs'
 import type { Queue } from 'bullmq'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { ok } from 'neverthrow'
 import {
     BACKFILL_FIDS,
@@ -101,6 +102,7 @@ export class App implements MessageHandler {
     static async processMessagesOfType(
         messages: Message[],
         type: MessageType,
+        txn: PostgresJsTransaction<any, any>,
     ): Promise<void> {
         switch (type) {
             // case MessageType.CAST_ADD:
@@ -110,25 +112,46 @@ export class App implements MessageHandler {
             //     await deleteCasts(messages, db)
             //     break
             case MessageType.REACTION_ADD:
-                await insertReactions(messages)
+                await insertReactions({
+                    msgs: messages,
+                    txn,
+                })
                 break
             case MessageType.REACTION_REMOVE:
-                await deleteReactions(messages)
+                await deleteReactions({
+                    msgs: messages,
+                    txn,
+                })
                 break
             case MessageType.VERIFICATION_ADD_ETH_ADDRESS:
-                await insertVerifications(messages)
+                await insertVerifications({
+                    msgs: messages,
+                    txn,
+                })
                 break
             case MessageType.VERIFICATION_REMOVE:
-                await deleteVerifications(messages)
+                await deleteVerifications({
+                    msgs: messages,
+                    txn,
+                })
                 break
             case MessageType.USER_DATA_ADD:
-                await insertUserDatas(messages)
+                await insertUserDatas({
+                    msgs: messages,
+                    txn,
+                })
                 break
             case MessageType.LINK_ADD:
-                await insertLinks(messages)
+                await insertLinks({
+                    msgs: messages,
+                    txn,
+                })
                 break
             case MessageType.LINK_REMOVE:
-                await deleteLinks(messages)
+                await deleteLinks({
+                    msgs: messages,
+                    txn,
+                })
                 break
             default:
                 log.debug(`No handler for message type ${type}`)
@@ -144,16 +167,13 @@ export class App implements MessageHandler {
         wasMissed,
     }: {
         message: Message
-        txn: any
+        txn: PostgresJsTransaction<any, any>
         operation: StoreMessageOperation
         state: MessageState
         wasMissed: boolean
     }): Promise<void> {
         if (message.data?.type) {
-            await App.processMessagesOfType(
-                [message],
-                message.data.type /* txn */,
-            )
+            await App.processMessagesOfType([message], message.data.type, txn)
         }
 
         const messageDesc = wasMissed

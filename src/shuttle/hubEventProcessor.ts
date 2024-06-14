@@ -13,6 +13,7 @@ import {
     isVerificationAddAddressMessage,
     isVerificationRemoveMessage,
 } from '@farcaster/hub-nodejs'
+import { log } from '../log.ts'
 import type { MessageHandler, MessageState, StoreMessageOperation } from './'
 import type { DB } from './db'
 
@@ -51,6 +52,7 @@ export async function handleMissingMessage(
     message: Message,
     handler: MessageHandler,
 ) {
+    log.debug('Handling missing message')
     await processMessage({
         db,
         message,

@@ -1,6 +1,6 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
 import { and, eq } from 'drizzle-orm'
-import { db } from '../lib/drizzle'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { links } from '../lib/drizzle/schema.ts'
 import { log } from '../log.ts'
 import { formatLinks } from './utils.ts'
@@ -9,7 +9,10 @@ import { formatLinks } from './utils.ts'
  * Inserts links into the database.
  * @param {Message[]} msgs - The messages to insert.
  */
-export async function insertLinks(msgs: Message[]) {
+export async function insertLinks({
+    msgs,
+    txn,
+}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
     log.info('INSERTING LINKS')
     const values = formatLinks(msgs)
 
@@ -18,7 +21,7 @@ export async function insertLinks(msgs: Message[]) {
     }
 
     try {
-        await db.insert(links).values(values).onConflictDoNothing().execute()
+        await txn.insert(links).values(values).onConflictDoNothing().execute()
 
         log.debug('LINKS INSERTED')
     } catch (error) {
@@ -30,14 +33,17 @@ export async function insertLinks(msgs: Message[]) {
  * Deletes links from the database.
  * @param {Message[]} msgs - The messages to delete.
  */
-export async function deleteLinks(msgs: Message[]) {
+export async function deleteLinks({
+    msgs,
+    txn,
+}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
     log.info('DELETING LINKS')
     try {
         for (const msg of msgs) {
             const data = msg.data
 
             if (data) {
-                await db
+                await txn
                     .update(links)
                     .set({
                         deletedAt: new Date(
