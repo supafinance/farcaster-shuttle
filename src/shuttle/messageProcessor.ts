@@ -1,4 +1,5 @@
 import { Message, validations } from '@farcaster/hub-nodejs'
+import { sql } from 'drizzle-orm'
 import type { pino } from 'pino'
 import { toHex } from 'viem'
 import { messages } from '../lib/drizzle/schema.ts'
@@ -94,40 +95,15 @@ export const storeMessage = async ({
                 raw: String(Message.encode(message).finish()),
                 ...opData,
             },
-            // .where(({ eb, or }) =>
-            //     or([
-            //         eb('excluded.deletedAt', 'is not', null).and(
-            //             'messages.deletedAt',
-            //             'is',
-            //             null,
-            //         ),
-            //         eb('excluded.deletedAt', 'is', null).and(
-            //             'messages.deletedAt',
-            //             'is not',
-            //             null,
-            //         ),
-            //         eb('excluded.prunedAt', 'is not', null).and(
-            //             'messages.prunedAt',
-            //             'is',
-            //             null,
-            //         ),
-            //         eb('excluded.prunedAt', 'is', null).and(
-            //             'messages.prunedAt',
-            //             'is not',
-            //             null,
-            //         ),
-            //         eb('excluded.revokedAt', 'is not', null).and(
-            //             'messages.revokedAt',
-            //             'is',
-            //             null,
-            //         ),
-            //         eb('excluded.revokedAt', 'is', null).and(
-            //             'messages.revokedAt',
-            //             'is not',
-            //             null,
-            //         ),
-            //     ]),
-            // ),
+            setWhere: sql`(
+                (EXCLUDED.deleted_at IS NOT NULL AND ${messages.deletedAt} IS NULL) OR
+                (EXCLUDED.deleted_at IS NULL AND ${messages.deletedAt} IS NOT NULL) OR
+                (EXCLUDED.pruned_at IS NOT NULL AND ${messages.prunedAt} IS NULL) OR
+                (EXCLUDED.pruned_at IS NULL AND ${messages.prunedAt} IS NOT NULL) OR
+                (EXCLUDED.revoked_at IS NOT NULL AND ${messages.revokedAt} IS NULL) OR
+                (EXCLUDED.revoked_at IS NULL AND ${messages.revokedAt} IS NOT NULL)
+            )
+`,
         })
         .returning({ id: messages.id })
     return !!result
