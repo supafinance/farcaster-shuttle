@@ -3,10 +3,9 @@ import {
     type Message,
     MessageType,
 } from '@farcaster/hub-nodejs'
-import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { pino } from 'pino'
 import { type Hex, toHex } from 'viem'
-import { messages as messagesTable } from '../lib/drizzle/schema.ts'
+// import { messages as messagesTable } from '../lib/drizzle/schema.ts'
 import type { DB } from './db'
 
 const MAX_PAGE_SIZE = 3_000
@@ -377,26 +376,26 @@ export class MessageReconciliation {
                 break
         }
 
-        return this.db
-            .select({
-                prunedAt: messagesTable.prunedAt,
-                revokedAt: messagesTable.revokedAt,
-                hash: messagesTable.hash,
-                fid: messagesTable.fid,
-                type: messagesTable.type,
-                raw: messagesTable.raw,
-                signer: messagesTable.signer,
-            })
-            .from(messagesTable)
-            .where(
-                and(
-                    eq(messagesTable.fid, String(fid)),
-                    inArray(messagesTable.type, typeSet),
-                    isNull(messagesTable.prunedAt),
-                    isNull(messagesTable.revokedAt),
-                    isNull(messagesTable.deletedAt),
-                ),
-            )
-            .execute()
+        // return this.db
+        //     .select({
+        //         prunedAt: messagesTable.prunedAt,
+        //         revokedAt: messagesTable.revokedAt,
+        //         hash: messagesTable.hash,
+        //         fid: messagesTable.fid,
+        //         type: messagesTable.type,
+        //         raw: messagesTable.raw,
+        //         signer: messagesTable.signer,
+        //     })
+        //     .from(messagesTable)
+        //     .where(
+        //         and(
+        //             eq(messagesTable.fid, String(fid)),
+        //             inArray(messagesTable.type, typeSet),
+        //             isNull(messagesTable.prunedAt),
+        //             isNull(messagesTable.revokedAt),
+        //             isNull(messagesTable.deletedAt),
+        //         ),
+        //     )
+        //     .execute()
     }
 }
