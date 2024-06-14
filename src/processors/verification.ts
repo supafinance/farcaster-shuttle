@@ -14,10 +14,9 @@ export async function insertVerifications({
     msgs,
     txn,
 }: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
-    log.info('INSERTING VERIFICATIONS')
     const values = formatVerifications(msgs)
 
-    if (!values) {
+    if (!values || values.length === 0) {
         return
     }
 
@@ -37,7 +36,6 @@ export async function deleteVerifications({
     msgs,
     txn,
 }: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
-    log.info('DELETING VERIFICATIONS')
     try {
         for (const msg of msgs) {
             const data = msg.data

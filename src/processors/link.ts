@@ -13,10 +13,9 @@ export async function insertLinks({
     msgs,
     txn,
 }: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
-    log.info('INSERTING LINKS')
     const values = formatLinks(msgs)
 
-    if (!values) {
+    if (!values || values.length === 0) {
         return
     }
 
@@ -36,7 +35,6 @@ export async function deleteLinks({
     msgs,
     txn,
 }: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
-    log.info('DELETING LINKS')
     try {
         for (const msg of msgs) {
             const data = msg.data
