@@ -72,6 +72,7 @@ export class App implements MessageHandler {
         shardIndex: number,
         hubSSL = false,
     ) {
+        // creates a hub rpc client
         const hub = getHubClient(hubUrl, { ssl: hubSSL })
         const redis = RedisClient.create(redisUrl)
         const eventStreamForWrite = new EventStreamConnection(redis.client)

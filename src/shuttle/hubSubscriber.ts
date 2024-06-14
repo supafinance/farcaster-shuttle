@@ -27,10 +27,20 @@ export abstract class HubSubscriber extends TypedEmitter<HubEventsEmitter> {
         throw new Error('Method not implemented.')
     }
 
+    /**
+     * Get the last event ID processed by the subscriber.
+     * This method should be implemented by the subclass.
+     */
     public async getLastEventId(): Promise<number | undefined> {
         return undefined
     }
 
+    /**
+     * Process a hub event.
+     * This method should be implemented by the subclass.
+     * @param {HubEvent} event The hub event to process.
+     * @returns {Promise<boolean>} A promise that resolves to `true` if the event was successfully processed.
+     */
     public async processHubEvent(event: HubEvent): Promise<boolean> {
         return true
     }
@@ -216,6 +226,11 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
         this.eventsToAdd = []
     }
 
+    /**
+     * Get the last event ID processed by the subscriber.
+     * The eventId is stored in Redis.
+     * @returns {Promise<number | undefined>} The last event ID processed by the subscriber.
+     */
     public override async getLastEventId(): Promise<number | undefined> {
         // Migrate the old label based key if present
         const labelBasedKey = await this.redis.getLastProcessedEvent(this.label)
@@ -226,8 +241,16 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
         return await this.redis.getLastProcessedEvent(this.redisKey)
     }
 
+    /**
+     * Process a hub event.
+     * @param {HubEvent} event The hub event to process.
+     * @returns {Promise<boolean>} A promise that resolves to `true` if the event was successfully processed.
+     */
     public override async processHubEvent(event: HubEvent): Promise<boolean> {
+        // Add the event to the batch
         this.eventsToAdd.push(event)
+
+        // Once the batch size is reached, add the events to the event stream
         if (this.eventsToAdd.length >= this.eventBatchSize) {
             let lastEventId: number | undefined
             for (const evt of this.eventsToAdd) {
@@ -243,6 +266,7 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
                     lastEventId,
                 )
             }
+            // Clear the batch
             this.eventsToAdd = []
         }
 

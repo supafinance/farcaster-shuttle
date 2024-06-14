@@ -83,6 +83,8 @@ export class EventStreamConnection {
 
     /**
      * Adds one or more event to the stream at the specified key.
+     * @param {string} key The key of the stream
+     * @param {Buffer | Buffer[] }data The data to add to the stream
      */
     async add(key: string, data: Buffer | Buffer[]) {
         if (data instanceof Buffer) {
@@ -101,6 +103,9 @@ export class EventStreamConnection {
     /**
      * Reserves up to the specified number (default 1) of events from the stream for
      * the given consumer group.
+     * @param {string} key The key of the stream
+     * @param {string} consumerGroup The consumer group to reserve the events for
+     * @param {number} count The number of events to reserve
      */
     async reserve(key: string, consumerGroup: string, count = 1) {
         // Need `as any` because xreadgroupBuffer exists but not the ioredis types

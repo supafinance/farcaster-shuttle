@@ -14,9 +14,13 @@ import {
     isVerificationRemoveMessage,
 } from '@farcaster/hub-nodejs'
 import { log } from '../log'
-import type { MessageHandler, MessageState, StoreMessageOperation } from './'
+import {
+    type MessageHandler,
+    type MessageState,
+    type StoreMessageOperation,
+    storeMessage,
+} from './'
 import type { DB } from './db'
-import { MessageProcessor } from './messageProcessor'
 
 export async function processHubEvent(
     db: DB,
@@ -24,27 +28,27 @@ export async function processHubEvent(
     handler: MessageHandler,
 ) {
     if (isMergeMessageHubEvent(event)) {
-        await processMessage(
+        await processMessage({
             db,
-            event.mergeMessageBody.message,
+            message: event.mergeMessageBody.message,
             handler,
-            'merge',
-            event.mergeMessageBody.deletedMessages,
-        )
+            operation: 'merge',
+            deletedMessages: event.mergeMessageBody.deletedMessages,
+        })
     } else if (isRevokeMessageHubEvent(event)) {
-        await processMessage(
+        await processMessage({
             db,
-            event.revokeMessageBody.message,
+            message: event.revokeMessageBody.message,
             handler,
-            'revoke',
-        )
+            operation: 'revoke',
+        })
     } else if (isPruneMessageHubEvent(event)) {
-        await processMessage(
+        await processMessage({
             db,
-            event.pruneMessageBody.message,
+            message: event.pruneMessageBody.message,
             handler,
-            'prune',
-        )
+            operation: 'prune',
+        })
     }
 }
 
@@ -53,7 +57,13 @@ export async function handleMissingMessage(
     message: Message,
     handler: MessageHandler,
 ) {
-    await processMessage(db, message, handler, 'merge', [], true)
+    await processMessage({
+        db,
+        message,
+        handler,
+        operation: 'merge',
+        wasMissed: true,
+    })
 }
 
 export function getMessageState(
@@ -108,24 +118,31 @@ export function getMessageState(
     return isAdd ? 'created' : 'deleted'
 }
 
-async function processMessage(
-    db: DB,
-    message: Message,
-    handler: MessageHandler,
-    operation: StoreMessageOperation,
-    deletedMessages: Message[] = [],
+async function processMessage({
+    db,
+    message,
+    handler,
+    operation,
+    deletedMessages = [],
     wasMissed = false,
-) {
+}: {
+    db: DB
+    message: Message
+    handler: MessageHandler
+    operation: StoreMessageOperation
+    deletedMessages?: Message[]
+    wasMissed?: boolean
+}) {
     await db.transaction(async (trx) => {
         if (deletedMessages.length > 0) {
             await Promise.all(
                 deletedMessages.map(async (deletedMessage) => {
-                    const isNew = await MessageProcessor.storeMessage(
-                        deletedMessage,
-                        trx,
-                        'delete',
+                    const isNew = await storeMessage({
+                        message: deletedMessage,
+                        trx: trx,
+                        operation: 'delete',
                         log,
-                    )
+                    })
                     const state = getMessageState(deletedMessage, 'delete')
                     await handler.handleMessageMerge(
                         deletedMessage,
@@ -138,12 +155,12 @@ async function processMessage(
                 }),
             )
         }
-        const isNew = await MessageProcessor.storeMessage(
+        const isNew = await storeMessage({
             message,
             trx,
             operation,
             log,
-        )
+        })
         const state = getMessageState(message, operation)
         await handler.handleMessageMerge(
             message,
