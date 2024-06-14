@@ -131,40 +131,24 @@ async function processMessage({
         if (deletedMessages.length > 0) {
             await Promise.all(
                 deletedMessages.map(async (deletedMessage) => {
-                    // const isNew = await storeMessage({
-                    //     message: deletedMessage,
-                    //     trx: trx,
-                    //     operation: 'delete',
-                    //     log,
-                    // })
-                    const isNew = true
                     const state = getMessageState(deletedMessage, 'delete')
-                    await handler.handleMessageMerge(
-                        deletedMessage,
-                        trx,
-                        'delete',
+                    await handler.handleMessageMerge({
+                        message: deletedMessage,
+                        txn: trx,
+                        operation: 'delete',
                         state,
-                        isNew,
                         wasMissed,
-                    )
+                    })
                 }),
             )
         }
-        // const isNew = await storeMessage({
-        //     message,
-        //     trx,
-        //     operation,
-        //     log,
-        // })
-        const isNew = true
         const state = getMessageState(message, operation)
-        await handler.handleMessageMerge(
+        await handler.handleMessageMerge({
             message,
-            trx,
+            txn: trx,
             operation,
             state,
-            isNew,
             wasMissed,
-        )
+        })
     })
 }

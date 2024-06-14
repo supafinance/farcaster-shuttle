@@ -136,19 +136,19 @@ export class App implements MessageHandler {
     }
 
     // todo: checkout christopher's implementation
-    async handleMessageMerge(
-        message: Message,
-        txn: any,
-        operation: StoreMessageOperation,
-        state: MessageState,
-        isNew: boolean,
-        wasMissed: boolean,
-    ): Promise<void> {
-        // if (!isNew) {
-        //     // Message was already in the db, no-op
-        //     return
-        // }
-
+    async handleMessageMerge({
+        message,
+        txn,
+        operation,
+        state,
+        wasMissed,
+    }: {
+        message: Message
+        txn: any
+        operation: StoreMessageOperation
+        state: MessageState
+        wasMissed: boolean
+    }): Promise<void> {
         if (message.data?.type) {
             await App.processMessagesOfType(
                 [message],

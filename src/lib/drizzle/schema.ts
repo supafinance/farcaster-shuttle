@@ -53,6 +53,7 @@ export const userDataRelations = relations(userData, ({ many }) => ({
 
 export const links = pgTable('links', {
     id: serial('id').primaryKey(),
+    hash: varchar('hash', { length: 256 }).$type<Hex>(),
     fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
     targetFid: decimal('target_fid', { precision: 12, scale: 0 }).notNull(),
     createdAt: timestamp('created_at', { mode: 'string' })
@@ -82,6 +83,7 @@ export const linkRelations = relations(links, ({ one }) => ({
 
 export const verifications = pgTable('verifications', {
     id: serial('id').primaryKey(),
+    hash: varchar('hash', { length: 256 }).$type<Hex>(),
     createdAt: timestamp('created_at', { mode: 'string' })
         .notNull()
         .defaultNow(),
@@ -103,27 +105,27 @@ export const verificationRelations = relations(verifications, ({ one }) => ({
     }),
 }))
 
-export const messages = pgTable('messages', {
-    id: serial('id').primaryKey(),
-    createdAt: timestamp('created_at', { mode: 'string' })
-        .notNull()
-        .defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' })
-        .notNull()
-        .defaultNow(),
-    timestamp: timestamp('timestamp', { mode: 'string' }).notNull(),
-    deletedAt: timestamp('deleted_at', { mode: 'string' }),
-    prunedAt: timestamp('pruned_at', { mode: 'string' }),
-    revokedAt: timestamp('revoked_at', { mode: 'string' }),
-    fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
-    type: integer('type').notNull(),
-    hashScheme: integer('hash_scheme').notNull(),
-    signatureScheme: integer('signature_scheme').notNull(),
-    hash: varchar('hash', { length: 256 }).$type<Hex>(),
-    signer: varchar('signer', { length: 256 }).$type<Hex>(),
-    body: json('body'),
-    raw: varchar('raw', { length: 256 }),
-})
+// export const messages = pgTable('messages', {
+//     id: serial('id').primaryKey(),
+//     createdAt: timestamp('created_at', { mode: 'string' })
+//         .notNull()
+//         .defaultNow(),
+//     updatedAt: timestamp('updated_at', { mode: 'string' })
+//         .notNull()
+//         .defaultNow(),
+//     timestamp: timestamp('timestamp', { mode: 'string' }).notNull(),
+//     deletedAt: timestamp('deleted_at', { mode: 'string' }),
+//     prunedAt: timestamp('pruned_at', { mode: 'string' }),
+//     revokedAt: timestamp('revoked_at', { mode: 'string' }),
+//     fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
+//     type: integer('type').notNull(),
+//     hashScheme: integer('hash_scheme').notNull(),
+//     signatureScheme: integer('signature_scheme').notNull(),
+//     hash: varchar('hash', { length: 256 }).$type<Hex>(),
+//     signer: varchar('signer', { length: 256 }).$type<Hex>(),
+//     body: json('body'),
+//     raw: varchar('raw', { length: 256 }),
+// })
 
 export const reactions = pgTable('reactions', {
     id: serial('id').primaryKey(),

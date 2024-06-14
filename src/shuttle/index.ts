@@ -26,12 +26,17 @@ export type ProcessResult = {
 // is semantically a delete of the existing add, and state will be set to "deleted" in that case)
 
 export interface MessageHandler {
-    handleMessageMerge(
-        message: Message,
-        txn: DB,
-        operation: StoreMessageOperation,
-        state: MessageState,
-        isNew: boolean,
-        wasMissed: boolean,
-    ): Promise<void>
+    handleMessageMerge({
+        message,
+        txn,
+        operation,
+        state,
+        wasMissed,
+    }: {
+        message: Message
+        txn: DB
+        operation: StoreMessageOperation
+        state: MessageState
+        wasMissed: boolean
+    }): Promise<void>
 }

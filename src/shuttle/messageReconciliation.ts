@@ -7,7 +7,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { pino } from 'pino'
 import { type Hex, toHex } from 'viem'
 import { messages as messagesTable } from '../lib/drizzle/schema.ts'
-import type { DB, MessageRow } from './db'
+import type { DB } from './db'
 
 const MAX_PAGE_SIZE = 3_000
 
@@ -41,10 +41,10 @@ export class MessageReconciliation {
             prunedInDb: boolean,
             revokedInDb: boolean,
         ) => Promise<void>,
-        onDbMessage?: (
-            message: DBMessage,
-            missingInHub: boolean,
-        ) => Promise<void>,
+        // onDbMessage?: (
+        //     message: DBMessage,
+        //     missingInHub: boolean,
+        // ) => Promise<void>,
     ) {
         for (const type of [
             MessageType.CAST_ADD,
@@ -58,7 +58,7 @@ export class MessageReconciliation {
                 fid,
                 type,
                 onHubMessage,
-                onDbMessage,
+                // onDbMessage,
             )
         }
     }
@@ -72,10 +72,10 @@ export class MessageReconciliation {
             prunedInDb: boolean,
             revokedInDb: boolean,
         ) => Promise<void>,
-        onDbMessage?: (
-            message: DBMessage,
-            missingInHub: boolean,
-        ) => Promise<void>,
+        // onDbMessage?: (
+        //     message: DBMessage,
+        //     missingInHub: boolean,
+        // ) => Promise<void>,
     ) {
         // todo: Username proofs, and on chain events
 
@@ -92,72 +92,101 @@ export class MessageReconciliation {
                 continue
             }
 
-            const dbMessages = await this.db
-                .select({
-                    prunedAt: messagesTable.prunedAt,
-                    revokedAt: messagesTable.revokedAt,
-                    hash: messagesTable.hash,
-                    fid: messagesTable.fid,
-                    type: messagesTable.type,
-                    raw: messagesTable.raw,
-                })
-                .from(messagesTable)
-                .where(inArray(messagesTable.hash, messageHashes))
-                .execute()
+            switch (type) {
+                case MessageType.CAST_ADD:
+                    this.log.info(
+                        `Reconciling ${messageHashes.length} cast messages for FID ${fid}`,
+                    )
+                    break
+                case MessageType.REACTION_ADD:
+                    this.log.info(
+                        `Reconciling ${messageHashes.length} reaction messages for FID ${fid}`,
+                    )
+                    break
+                case MessageType.LINK_ADD:
+                    this.log.info(
+                        `Reconciling ${messageHashes.length} link messages for FID ${fid}`,
+                    )
+                    break
+                case MessageType.VERIFICATION_ADD_ETH_ADDRESS:
+                    this.log.info(
+                        `Reconciling ${messageHashes.length} verification messages for FID ${fid}`,
+                    )
+                    break
+                case MessageType.USER_DATA_ADD:
+                    this.log.info(
+                        `Reconciling ${messageHashes.length} user data messages for FID ${fid}`,
+                    )
+                    break
+            }
 
-            const dbMessageHashes = dbMessages.reduce(
-                (acc, msg) => {
-                    if (msg.hash === null) {
-                        return acc
-                    }
-                    const key = toHex(msg.hash)
-                    acc[key] = msg
-                    return acc
-                },
-                {} as Record<
-                    string,
-                    Pick<
-                        MessageRow,
-                        | 'revokedAt'
-                        | 'prunedAt'
-                        | 'fid'
-                        | 'type'
-                        | 'hash'
-                        | 'raw'
-                    >
-                >,
-            )
+            // const dbMessages = await this.db
+            //     .select({
+            //         prunedAt: messagesTable.prunedAt,
+            //         revokedAt: messagesTable.revokedAt,
+            //         hash: messagesTable.hash,
+            //         fid: messagesTable.fid,
+            //         type: messagesTable.type,
+            //         raw: messagesTable.raw,
+            //     })
+            //     .from(messagesTable)
+            //     .where(inArray(messagesTable.hash, messageHashes))
+            //     .execute()
+            //
+            // const dbMessageHashes = dbMessages.reduce(
+            //     (acc, msg) => {
+            //         if (msg.hash === null) {
+            //             return acc
+            //         }
+            //         const key = toHex(msg.hash)
+            //         acc[key] = msg
+            //         return acc
+            //     },
+            //     {} as Record<
+            //         string,
+            //         Pick<
+            //             MessageRow,
+            //             | 'revokedAt'
+            //             | 'prunedAt'
+            //             | 'fid'
+            //             | 'type'
+            //             | 'hash'
+            //             | 'raw'
+            //         >
+            //     >,
+            // )
 
             for (const message of messages) {
                 const msgHashKey = Buffer.from(message.hash).toString('hex')
                 hubMessagesByHash[msgHashKey] = message
 
-                const dbMessage = dbMessageHashes[msgHashKey]
-                if (dbMessage === undefined) {
-                    await onHubMessage(message, true, false, false)
-                } else {
-                    let wasPruned = false
-                    let wasRevoked = false
-                    if (dbMessage?.prunedAt) {
-                        wasPruned = true
-                    }
-                    if (dbMessage?.revokedAt) {
-                        wasRevoked = true
-                    }
-                    await onHubMessage(message, false, wasPruned, wasRevoked)
-                }
+                await onHubMessage(message, true, false, false)
+                // const dbMessage = dbMessageHashes[msgHashKey]
+                // if (dbMessage === undefined) {
+                //     await onHubMessage(message, true, false, false)
+                // } else {
+                //     let wasPruned = false
+                //     let wasRevoked = false
+                //     if (dbMessage?.prunedAt) {
+                //         wasPruned = true
+                //     }
+                //     if (dbMessage?.revokedAt) {
+                //         wasRevoked = true
+                //     }
+                //     await onHubMessage(message, false, wasPruned, wasRevoked)
+                // }
             }
         }
 
-        // Next, reconcile messages that are in the database but not in the hub
-        const dbMessages = await this.allActiveDbMessagesOfTypeForFid(fid, type)
-        for (const dbMessage of dbMessages) {
-            if (dbMessage.hash === null) {
-                continue
-            }
-            const key = toHex(dbMessage.hash)
-            await onDbMessage?.(dbMessage, !hubMessagesByHash[key])
-        }
+        // // todo: Next, reconcile messages that are in the database but not in the hub
+        // const dbMessages = await this.allActiveDbMessagesOfTypeForFid(fid, type)
+        // for (const dbMessage of dbMessages) {
+        //     if (dbMessage.hash === null) {
+        //         continue
+        //     }
+        //     const key = toHex(dbMessage.hash)
+        //     await onDbMessage?.(dbMessage, !hubMessagesByHash[key])
+        // }
     }
 
     private async *allHubMessagesOfTypeForFid(fid: number, type: MessageType) {
