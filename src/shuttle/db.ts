@@ -3,28 +3,13 @@ import type {
     UserDataType,
     UserNameType,
 } from '@farcaster/hub-nodejs'
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
-import { pgEnum } from 'drizzle-orm/pg-core'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
-import type { messages } from '../lib/drizzle/schema'
+import type { Hex } from 'viem'
 
 export type DB = PostgresJsDatabase<any>
 
 export type Fid = number
-export type Hex = `0x${string}`
 export type VerificationProtocol = 'ethereum' | 'solana'
-
-// Enums
-export const reactionType = pgEnum('reaction_type', ['LIKE', 'DISLIKE']) // Example values
-export const messageType = pgEnum('message_type', [
-    'CAST',
-    'REACTION',
-    'VERIFICATION',
-]) // Example values
-export const hashScheme = pgEnum('hash_scheme', ['SHA256', 'KECCAK256']) // Example values
-export const signatureScheme = pgEnum('signature_scheme', ['ECDSA', 'ED25519']) // Example values
-export const userDataType = pgEnum('user_data_type', ['BIO', 'USERNAME']) // Example values
-export const userNameType = pgEnum('user_name_type', ['EMAIL', 'USERNAME']) // Example values
 
 type CastIdJson = {
     fid: Fid
@@ -101,6 +86,3 @@ export type MessageBodyJson =
     | SignerRemoveBodyJson
     | UserDataBodyJson
     | UsernameProofBodyJson
-
-export type MessageRow = InferSelectModel<typeof messages>
-export type InsertableMessageRow = InferInsertModel<typeof messages>
