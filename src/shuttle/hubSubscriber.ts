@@ -6,6 +6,7 @@ import {
 } from '@farcaster/hub-nodejs'
 import { type Result, err, ok } from 'neverthrow'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { EVENT_BATCH_SIZE } from '../env.ts'
 import type { Logger } from '../log'
 import { sleep } from '../utils'
 import type { EventStreamConnection } from './eventStream'
@@ -38,10 +39,8 @@ export abstract class HubSubscriber extends TypedEmitter<HubEventsEmitter> {
     /**
      * Process a hub event.
      * This method should be implemented by the subclass.
-     * @param {HubEvent} event The hub event to process.
-     * @returns {Promise<boolean>} A promise that resolves to `true` if the event was successfully processed.
      */
-    public async processHubEvent(event: HubEvent): Promise<boolean> {
+    public async processHubEvent(_event: HubEvent): Promise<boolean> {
         return true
     }
 
@@ -177,7 +176,6 @@ export class BaseHubSubscriber extends HubSubscriber {
                 for await (const event of stream) {
                     await this.processHubEvent(event)
                 }
-                // biome-ignore lint/suspicious/noExplicitAny: error catching
             } catch (e: any) {
                 this.emit('onError', e, this.stopped)
                 if (this.stopped) {
@@ -205,7 +203,6 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
     private eventStream: EventStreamConnection
     private redis: RedisClient
     private eventsToAdd: HubEvent[]
-    private eventBatchSize = 20
 
     constructor(
         label: string,
@@ -251,7 +248,7 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
         this.eventsToAdd.push(event)
 
         // Once the batch size is reached, add the events to the event stream
-        if (this.eventsToAdd.length >= this.eventBatchSize) {
+        if (this.eventsToAdd.length >= EVENT_BATCH_SIZE) {
             let lastEventId: number | undefined
             for (const evt of this.eventsToAdd) {
                 await this.eventStream.add(
