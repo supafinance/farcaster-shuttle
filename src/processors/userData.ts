@@ -7,7 +7,7 @@ export async function insertUserDatas({
     msgs,
     txn,
 }: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
-    log.info('INSERTING USER DATA')
+    log.debug('INSERTING USER DATA')
     await Promise.all(
         msgs.map(async (msg) => {
             const data = msg.data

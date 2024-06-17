@@ -64,7 +64,6 @@ export async function deleteVerifications({
                         eq(verifications.fid, String(data.fid)),
                     ),
                 )
-                .execute()
         }
 
         log.debug('VERIFICATIONS DELETED')

@@ -59,7 +59,6 @@ export async function deleteLinks({
                             ),
                         ),
                     )
-                    .execute()
             }
         }
 

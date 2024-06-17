@@ -60,7 +60,6 @@ export async function deleteReactions({
                             ),
                         ),
                     )
-                    .execute()
             } else if (reaction.targetUrl) {
                 await txn
                     .update(reactions)
@@ -76,7 +75,6 @@ export async function deleteReactions({
                             eq(reactions.targetUrl, reaction.targetUrl),
                         ),
                     )
-                    .execute()
             }
         }
 
