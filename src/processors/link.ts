@@ -20,7 +20,10 @@ export async function insertLinks({
     }
 
     try {
-        await txn.insert(links).values(values).onConflictDoNothing().execute()
+        await txn
+            .insert(links)
+            .values(values)
+            .onConflictDoNothing() /*.execute()*/
         log.debug('LINKS INSERTED')
     } catch (error) {
         log.error(error, 'ERROR INSERTING LINK')

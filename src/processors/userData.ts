@@ -47,7 +47,7 @@ export async function insertUserDatas({
                                     pfpUpdatedAt: formattedTimestamp,
                                 },
                             })
-                            .execute()
+                        // .execute()
                     } catch (error) {
                         log.error(error, 'ERROR INSERTING USER DATA')
                     }
@@ -71,7 +71,7 @@ export async function insertUserDatas({
                                     displayNameUpdatedAt: formattedTimestamp,
                                 },
                             })
-                            .execute()
+                        // .execute()
 
                         log.debug('USER DATA INSERTED')
                     } catch (error) {
@@ -97,7 +97,7 @@ export async function insertUserDatas({
                                     bioUpdatedAt: formattedTimestamp,
                                 },
                             })
-                            .execute()
+                        // .execute()
 
                         log.debug('USER DATA INSERTED')
                     } catch (error) {
@@ -123,7 +123,7 @@ export async function insertUserDatas({
                                     urlUpdatedAt: formattedTimestamp,
                                 },
                             })
-                            .execute()
+                        // .execute()
 
                         log.debug('USER DATA INSERTED')
                     } catch (error) {
@@ -153,7 +153,7 @@ export async function insertUserDatas({
                                     usernameUpdatedAt: formattedTimestamp,
                                 },
                             })
-                            .execute()
+                        // .execute()
 
                         log.debug('USER DATA INSERTED')
                     } catch (error) {

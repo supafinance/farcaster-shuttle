@@ -19,12 +19,17 @@ export class MessageReconciliation {
 
     async reconcileMessagesForFid(
         fid: number,
-        onHubMessage: (
-            message: Message,
-            missingInDb: boolean,
-            prunedInDb: boolean,
-            revokedInDb: boolean,
-        ) => Promise<void>,
+        onHubMessage: ({
+            message,
+            missingInDb,
+            prunedInDb,
+            revokedInDb,
+        }: {
+            message: Message
+            missingInDb: boolean
+            prunedInDb: boolean
+            revokedInDb: boolean
+        }) => Promise<void>,
     ) {
         for (const type of [
             // MessageType.CAST_ADD,
@@ -36,26 +41,39 @@ export class MessageReconciliation {
             this.log.debug(
                 `Reconciling messages for FID ${fid} of type ${type}`,
             )
-            await this.reconcileMessagesOfTypeForFid(fid, type, onHubMessage)
+            await this.reconcileMessagesOfTypeForFid({
+                fid,
+                type,
+                onHubMessage,
+            })
             this.log.info(`Reconciled messages for FID ${fid} of type ${type}`)
         }
     }
 
-    async reconcileMessagesOfTypeForFid(
-        fid: number,
-        type: MessageType,
-        onHubMessage: (
-            message: Message,
-            missingInDb: boolean,
-            prunedInDb: boolean,
-            revokedInDb: boolean,
-        ) => Promise<void>,
-    ) {
+    async reconcileMessagesOfTypeForFid({
+        fid,
+        type,
+        onHubMessage,
+    }: {
+        fid: number
+        type: MessageType
+        onHubMessage: ({
+            message,
+            missingInDb,
+            prunedInDb,
+            revokedInDb,
+        }: {
+            message: Message
+            missingInDb: boolean
+            prunedInDb: boolean
+            revokedInDb: boolean
+        }) => Promise<void>
+    }) {
         // First, reconcile messages that are in the hub but not in the database
-        for await (const messages of this.allHubMessagesOfTypeForFid(
+        for await (const messages of this.allHubMessagesOfTypeForFid({
             fid,
             type,
-        )) {
+        })) {
             if (messages.length === 0) {
                 this.log.info(`No messages of type ${type} for FID ${fid}`)
                 continue
@@ -91,7 +109,12 @@ export class MessageReconciliation {
 
             for (const message of messages) {
                 // always attempt to add to db, and do nothing on conflict
-                await onHubMessage(message, true, false, false)
+                await onHubMessage({
+                    message,
+                    missingInDb: true,
+                    prunedInDb: false,
+                    revokedInDb: false,
+                })
             }
         }
 
@@ -106,7 +129,10 @@ export class MessageReconciliation {
         // }
     }
 
-    private async *allHubMessagesOfTypeForFid(fid: number, type: MessageType) {
+    private async *allHubMessagesOfTypeForFid({
+        fid,
+        type,
+    }: { fid: number; type: MessageType }) {
         let fn: any
         switch (type) {
             case MessageType.CAST_ADD:

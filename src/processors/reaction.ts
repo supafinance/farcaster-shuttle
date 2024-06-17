@@ -17,11 +17,8 @@ export async function insertReactions({
     const values = formatReactions(msgs)
 
     try {
-        await txn
-            .insert(reactions)
-            .values(values)
-            .onConflictDoNothing()
-            .execute()
+        await txn.insert(reactions).values(values).onConflictDoNothing()
+        // .execute()
 
         log.debug('REACTIONS INSERTED')
     } catch (error) {

@@ -79,21 +79,21 @@ export class App implements MessageHandler {
     ) {
         // creates a hub rpc client
         const hub = getHubClient(hubUrl, { ssl: hubSSL })
-        const redis = RedisClient.create(redisUrl)
+        const redis = RedisClient.create({ redisUrl })
         const eventStreamForWrite = new EventStreamConnection(redis.client)
         const eventStreamForRead = new EventStreamConnection(redis.client)
         const shardKey = totalShards === 0 ? 'all' : `${shardIndex}`
-        const hubSubscriber = new EventStreamHubSubscriber(
-            hubId,
-            hub,
-            eventStreamForWrite,
+        const hubSubscriber = new EventStreamHubSubscriber({
+            label: hubId,
+            hubClient: hub,
+            eventStream: eventStreamForWrite,
             redis,
             shardKey,
             log,
-            undefined,
+            eventTypes: undefined,
             totalShards,
             shardIndex,
-        )
+        })
         const streamConsumer = new HubEventStreamConsumer({
             hub,
             eventStream: eventStreamForRead,
@@ -103,11 +103,15 @@ export class App implements MessageHandler {
         return new App({ redis, hubSubscriber, streamConsumer })
     }
 
-    static async processMessagesOfType(
-        messages: Message[],
-        type: MessageType,
-        txn: PostgresJsTransaction<any, any>,
-    ): Promise<void> {
+    static async processMessagesOfType({
+        messages,
+        type,
+        txn,
+    }: {
+        messages: Message[]
+        type: MessageType
+        txn: PostgresJsTransaction<any, any>
+    }): Promise<void> {
         switch (type) {
             // case MessageType.CAST_ADD:
             //     await insertCasts(messages, db)
@@ -162,7 +166,6 @@ export class App implements MessageHandler {
         }
     }
 
-    // todo: checkout christopher's implementation
     async handleMessageMerge({
         message,
         txn,
@@ -177,7 +180,11 @@ export class App implements MessageHandler {
         wasMissed: boolean
     }): Promise<void> {
         if (message.data?.type) {
-            await App.processMessagesOfType([message], message.data.type, txn)
+            await App.processMessagesOfType({
+                messages: [message],
+                type: message.data.type,
+                txn,
+            })
         }
 
         const messageDesc = wasMissed
@@ -219,7 +226,7 @@ export class App implements MessageHandler {
         for (const fid of fids) {
             await reconciler.reconcileMessagesForFid(
                 fid,
-                async (message, missingInDb, prunedInDb, revokedInDb) => {
+                async ({ message, missingInDb, prunedInDb, revokedInDb }) => {
                     if (missingInDb) {
                         await handleMissingMessage(db, message, this)
                     } else if (prunedInDb || revokedInDb) {

@@ -204,17 +204,27 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
     private redis: RedisClient
     private eventsToAdd: HubEvent[]
 
-    constructor(
-        label: string,
-        hubClient: HubClient,
-        eventStream: EventStreamConnection,
-        redis: RedisClient,
-        shardKey: string,
-        log: Logger,
-        eventTypes?: HubEventType[],
-        totalShards?: number,
-        shardIndex?: number,
-    ) {
+    constructor({
+        label,
+        hubClient,
+        eventStream,
+        redis,
+        shardKey,
+        log,
+        eventTypes,
+        totalShards,
+        shardIndex,
+    }: {
+        label: string
+        hubClient: HubClient
+        eventStream: EventStreamConnection
+        redis: RedisClient
+        shardKey: string
+        log: Logger
+        eventTypes?: HubEventType[]
+        totalShards?: number
+        shardIndex?: number
+    }) {
         super(label, hubClient.client, log, eventTypes, totalShards, shardIndex)
         this.eventStream = eventStream
         this.redis = redis
@@ -232,8 +242,14 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
         // Migrate the old label based key if present
         const labelBasedKey = await this.redis.getLastProcessedEvent(this.label)
         if (labelBasedKey > 0) {
-            await this.redis.setLastProcessedEvent(this.redisKey, labelBasedKey)
-            await this.redis.setLastProcessedEvent(this.label, 0)
+            await this.redis.setLastProcessedEvent({
+                hubId: this.redisKey,
+                eventId: labelBasedKey,
+            })
+            await this.redis.setLastProcessedEvent({
+                hubId: this.label,
+                eventId: 0,
+            })
         }
         return await this.redis.getLastProcessedEvent(this.redisKey)
     }
