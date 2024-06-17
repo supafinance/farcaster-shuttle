@@ -274,10 +274,10 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
                 lastEventId = evt.id
             }
             if (lastEventId) {
-                await this.redis.setLastProcessedEvent(
-                    this.redisKey,
-                    lastEventId,
-                )
+                await this.redis.setLastProcessedEvent({
+                    hubId: this.redisKey,
+                    eventId: lastEventId,
+                })
             }
             // Clear the batch
             this.eventsToAdd = []
