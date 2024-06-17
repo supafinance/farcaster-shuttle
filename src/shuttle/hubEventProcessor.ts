@@ -1,6 +1,7 @@
 import {
     type HubEvent,
     type Message,
+    type MessageType,
     isMergeMessageHubEvent,
     isPruneMessageHubEvent,
     isRevokeMessageHubEvent,
@@ -66,28 +67,6 @@ async function processMessage({
     })
 }
 
-export async function processMessages({
-    db,
-    messages,
-}: {
-    db: DB
-    messages: Message[]
-}) {
-    for (const message of messages) {
-        await db.transaction(async (trx) => {
-            if (message.data?.type) {
-                await App.processMessagesOfType({
-                    messages: [message],
-                    type: message.data?.type,
-                    trx,
-                })
-            }
-        })
-    }
-
-    log.warn(`Processed ${messages.length} messages`)
-}
-
 // export async function processMessages({
 //     db,
 //     messages,
@@ -95,19 +74,37 @@ export async function processMessages({
 //     db: DB
 //     messages: Message[]
 // }) {
-//     await db.transaction(async (trx) => {
-//         await Promise.all(
-//             messages.map(async (message) => {
-//                 if (message.data?.type) {
-//                     await App.processMessagesOfType({
-//                         messages: [message],
-//                         type: message.data?.type,
-//                         trx,
-//                     })
-//                 }
-//             }),
-//         )
-//     })
+//     for (const message of messages) {
+//         await db.transaction(async (trx) => {
+//             if (message.data?.type) {
+//                 await App.processMessagesOfType({
+//                     messages: [message],
+//                     type: message.data?.type,
+//                     trx,
+//                 })
+//             }
+//         })
+//     }
 //
 //     log.warn(`Processed ${messages.length} messages`)
 // }
+
+export async function processMessages({
+    db,
+    messages,
+    type,
+}: {
+    db: DB
+    messages: Message[]
+    type: MessageType
+}) {
+    await db.transaction(async (trx) => {
+        await App.processMessagesOfType({
+            messages,
+            type,
+            trx,
+        })
+    })
+
+    log.warn(`Processed ${messages.length} messages`)
+}

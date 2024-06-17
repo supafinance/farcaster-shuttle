@@ -11,7 +11,7 @@ type ReconcileParams = {
     client: HubRpcClient
     log: pino.Logger
     fid: number
-    onHubMessage: (messages: Message[]) => Promise<void>
+    onHubMessage: (messages: Message[], type: MessageType) => Promise<void>
 }
 
 export async function reconcileMessagesForFid({
@@ -44,7 +44,7 @@ type ReconcileMessagesOfTypeParams = {
     log: pino.Logger
     fid: number
     type: MessageType
-    onHubMessage: (messages: Message[]) => Promise<void>
+    onHubMessage: (messages: Message[], type: MessageType) => Promise<void>
 }
 
 async function reconcileMessagesOfTypeForFid({
@@ -90,7 +90,7 @@ async function reconcileMessagesOfTypeForFid({
                 break
         }
 
-        await onHubMessage(messages)
+        await onHubMessage(messages, type)
     }
 
     // todo: Next, reconcile messages that are in the database but not in the hub

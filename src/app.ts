@@ -206,10 +206,11 @@ export class App implements MessageHandler {
                 client: this.hubSubscriber.hubClient,
                 log,
                 fid,
-                onHubMessage: async (messages) => {
+                onHubMessage: async (messages, type) => {
                     await processMessages({
                         db,
                         messages,
+                        type,
                     })
                 },
             })
