@@ -73,19 +73,41 @@ export async function processMessages({
     db: DB
     messages: Message[]
 }) {
-    await db.transaction(async (trx) => {
-        await Promise.all(
-            messages.map(async (message) => {
-                if (message.data?.type) {
-                    await App.processMessagesOfType({
-                        messages: [message],
-                        type: message.data?.type,
-                        trx,
-                    })
-                }
-            }),
-        )
-    })
+    for (const message of messages) {
+        await db.transaction(async (trx) => {
+            if (message.data?.type) {
+                await App.processMessagesOfType({
+                    messages: [message],
+                    type: message.data?.type,
+                    trx,
+                })
+            }
+        })
+    }
 
     log.warn(`Processed ${messages.length} messages`)
 }
+
+// export async function processMessages({
+//     db,
+//     messages,
+// }: {
+//     db: DB
+//     messages: Message[]
+// }) {
+//     await db.transaction(async (trx) => {
+//         await Promise.all(
+//             messages.map(async (message) => {
+//                 if (message.data?.type) {
+//                     await App.processMessagesOfType({
+//                         messages: [message],
+//                         type: message.data?.type,
+//                         trx,
+//                     })
+//                 }
+//             }),
+//         )
+//     })
+//
+//     log.warn(`Processed ${messages.length} messages`)
+// }
