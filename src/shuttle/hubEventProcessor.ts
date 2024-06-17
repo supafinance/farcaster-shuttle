@@ -172,34 +172,38 @@ export async function processMessages({
     operation: StoreMessageOperation
     deletedMessages?: Message[]
 }) {
-    console.log('messages:', messages)
-    await db.transaction(async (trx) => {
-        if (deletedMessages.length > 0) {
-            await Promise.all(
-                deletedMessages.map(async (deletedMessage) => {
-                    const state = getMessageState(deletedMessage, 'delete')
+    log.info('messages:', messages.length)
+    await db
+        .transaction(async (trx) => {
+            if (deletedMessages.length > 0) {
+                await Promise.all(
+                    deletedMessages.map(async (deletedMessage) => {
+                        const state = getMessageState(deletedMessage, 'delete')
+                        await handler.handleMessageMerge({
+                            message: deletedMessage,
+                            trx,
+                            operation: 'delete',
+                            state,
+                            wasMissed: true,
+                        })
+                    }),
+                )
+            }
+
+            await Promise.all([
+                ...messages.map(async (message) => {
+                    const state = getMessageState(message, operation)
                     await handler.handleMessageMerge({
-                        message: deletedMessage,
+                        message,
                         trx,
-                        operation: 'delete',
+                        operation,
                         state,
                         wasMissed: true,
                     })
                 }),
-            )
-        }
-
-        await Promise.all([
-            ...messages.map(async (message) => {
-                const state = getMessageState(message, operation)
-                await handler.handleMessageMerge({
-                    message,
-                    trx,
-                    operation,
-                    state,
-                    wasMissed: true,
-                })
-            }),
-        ])
-    })
+            ])
+        })
+        .catch((e) => {
+            log.error('error in db transaction', e)
+        })
 }
