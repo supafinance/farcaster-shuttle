@@ -73,8 +73,8 @@ export async function processMessages({
     db: DB
     messages: Message[]
 }) {
-    for (const message of messages) {
-        await db.transaction(async (trx) => {
+    await db.transaction(async (trx) => {
+        for (const message of messages) {
             if (message.data?.type) {
                 await App.processMessagesOfType({
                     messages: [message],
@@ -82,8 +82,8 @@ export async function processMessages({
                     trx,
                 })
             }
-        })
-    }
+        }
+    })
 
     log.warn(`Processed ${messages.length} messages`)
 }
