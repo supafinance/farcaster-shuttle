@@ -22,7 +22,11 @@ export async function insertVerifications({
     }
 
     try {
-        await trx.insert(verifications).values(values).onConflictDoNothing()
+        await trx
+            .insert(verifications)
+            .values(values)
+            .onConflictDoNothing()
+            .execute()
         log.debug('VERIFICATIONS INSERTED')
     } catch (error) {
         log.error(error, 'ERROR INSERTING VERIFICATION')
@@ -66,6 +70,7 @@ export async function deleteVerifications({
                         eq(verifications.fid, String(data.fid)),
                     ),
                 )
+                .execute()
         }
 
         log.debug('VERIFICATIONS DELETED')

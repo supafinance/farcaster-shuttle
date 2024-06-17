@@ -2,20 +2,20 @@ import { Redis, type RedisOptions } from 'ioredis'
 
 /**
  * Get a Redis client.
- * @param {string} redisUrl The URL of the Redis instance.
- * @param {RedisOptions} redisOpts The options for the Redis client.
+ * @param {Object} args
+ * @param {string} args.redisUrl The URL of the Redis instance.
+ * @param {RedisOptions} args.redisOpts The options for the Redis client.
  * @returns {Redis} The Redis client.
  */
 export const getRedisClient = ({
     redisUrl,
     redisOpts,
-}: { redisUrl: string; redisOpts?: RedisOptions }) => {
-    const client = new Redis(redisUrl, {
+}: { redisUrl: string; redisOpts?: RedisOptions }): Redis => {
+    return new Redis(redisUrl, {
         connectTimeout: 5_000,
         maxRetriesPerRequest: null, // BullMQ wants this set
         ...redisOpts,
     })
-    return client
 }
 
 export class RedisClient {
@@ -26,21 +26,24 @@ export class RedisClient {
 
     /**
      * Create a new RedisClient
-     * @param {string} redisUrl The URL of the Redis instance.
-     * @param {RedisOptions} redisOpts The options for the Redis client.
+     * @param {Object} args
+     * @param {string} args.redisUrl The URL of the Redis instance.
+     * @param {RedisOptions} args.redisOpts The options for the Redis client.
+     * @returns {RedisClient} The Redis client.
      */
     static create({
         redisUrl,
         redisOpts,
-    }: { redisUrl: string; redisOpts?: RedisOptions }) {
+    }: { redisUrl: string; redisOpts?: RedisOptions }): RedisClient {
         const client = getRedisClient({ redisUrl, redisOpts })
         return new RedisClient(client)
     }
 
     /**
      * Set the last processed event ID for a hub.
-     * @param {string} hubId The ID of the hub.
-     * @param {number} eventId The ID of the event.
+     * @param {object} args
+     * @param {string} args.hubId The ID of the hub.
+     * @param {number} args.eventId The ID of the event.
      */
     async setLastProcessedEvent({
         hubId,
@@ -59,7 +62,7 @@ export class RedisClient {
      * @param {string} hubId The ID of the hub.
      * @returns {Promise<number>} The last processed event ID.
      */
-    async getLastProcessedEvent(hubId: string) {
+    async getLastProcessedEvent(hubId: string): Promise<number> {
         const eventId = await this.client.get(`hub:${hubId}:last-hub-event-id`)
         return eventId ? Number.parseInt(eventId) : 0
     }

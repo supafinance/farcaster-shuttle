@@ -18,8 +18,11 @@ export async function insertReactions({
     const values = formatReactions(msgs)
 
     try {
-        await trx.insert(reactions).values(values).onConflictDoNothing()
-        // .execute()
+        await trx
+            .insert(reactions)
+            .values(values)
+            .onConflictDoNothing()
+            .execute()
 
         log.debug('REACTIONS INSERTED')
     } catch (error) {
@@ -62,6 +65,7 @@ export async function deleteReactions({
                             ),
                         ),
                     )
+                    .execute()
             } else if (reaction.targetUrl) {
                 await trx
                     .update(reactions)
@@ -77,6 +81,7 @@ export async function deleteReactions({
                             eq(reactions.targetUrl, reaction.targetUrl),
                         ),
                     )
+                    .execute()
             }
         }
 

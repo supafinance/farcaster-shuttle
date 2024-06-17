@@ -30,14 +30,8 @@ export interface MessageHandler {
     handleMessageMerge({
         message,
         trx,
-        operation,
-        state,
-        wasMissed,
     }: {
         message: Message
         trx: DB | PostgresJsTransaction<any, any>
-        operation: StoreMessageOperation
-        state: MessageState
-        wasMissed: boolean
     }): Promise<void>
 }

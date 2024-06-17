@@ -1,12 +1,7 @@
 import * as process from 'node:process'
 import url from 'node:url'
 import { Command } from '@commander-js/extra-typings'
-import {
-    type HubEvent,
-    type Message,
-    MessageType,
-    bytesToHexString,
-} from '@farcaster/hub-nodejs'
+import { type HubEvent, type Message, MessageType } from '@farcaster/hub-nodejs'
 import type { Queue } from 'bullmq'
 import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { ok } from 'neverthrow'
@@ -24,6 +19,7 @@ import {
 } from './env.ts'
 import { db } from './lib/drizzle'
 import { log } from './log.ts'
+import { deleteCasts, insertCasts } from './processors/cast.ts'
 import { deleteLinks, insertLinks } from './processors/link.ts'
 import { deleteReactions, insertReactions } from './processors/reaction.ts'
 import { insertUserDatas } from './processors/userData.ts'
@@ -37,18 +33,19 @@ import {
     HubEventStreamConsumer,
     type HubSubscriber,
     type MessageHandler,
-    MessageReconciliation,
-    type MessageState,
     RedisClient,
-    type StoreMessageOperation,
     getHubClient,
     processHubEvent,
     processMessages,
+    reconcileMessagesForFid,
 } from './shuttle'
 import { getQueue, getWorker } from './worker.ts'
 
 const hubId = 'shuttle'
 
+/**
+ * Class that represents the shuttle application
+ */
 export class App implements MessageHandler {
     public redis: RedisClient
     private hubSubscriber: HubSubscriber
@@ -113,12 +110,12 @@ export class App implements MessageHandler {
         trx: PostgresJsTransaction<any, any>
     }): Promise<void> {
         switch (type) {
-            // case MessageType.CAST_ADD:
-            //     await insertCasts(messages, db)
-            //     break
-            // case MessageType.CAST_REMOVE:
-            //     await deleteCasts(messages, db)
-            //     break
+            case MessageType.CAST_ADD:
+                await insertCasts({ msgs: messages, trx })
+                break
+            case MessageType.CAST_REMOVE:
+                await deleteCasts({ msgs: messages, trx })
+                break
             case MessageType.REACTION_ADD:
                 await insertReactions({
                     msgs: messages,
@@ -169,15 +166,9 @@ export class App implements MessageHandler {
     async handleMessageMerge({
         message,
         trx,
-        operation,
-        state,
-        wasMissed,
     }: {
         message: Message
         trx: PostgresJsTransaction<any, any>
-        operation: StoreMessageOperation
-        state: MessageState
-        wasMissed: boolean
     }): Promise<void> {
         if (message.data?.type) {
             await App.processMessagesOfType({
@@ -186,15 +177,6 @@ export class App implements MessageHandler {
                 trx,
             })
         }
-
-        const messageDesc = wasMissed
-            ? `missed message (${operation})`
-            : `message (${operation})`
-        log.debug(
-            `${state} ${messageDesc} ${bytesToHexString(
-                message.hash,
-            )._unsafeUnwrap()} (type ${message.data?.type})`,
-        )
     }
 
     async start() {
@@ -219,42 +201,25 @@ export class App implements MessageHandler {
             throw new Error('Hub client is not initialized')
         }
 
-        const reconciler = new MessageReconciliation({
-            client: this.hubSubscriber.hubClient,
-            log,
-        })
         for (const fid of fids) {
-            await reconciler.reconcileMessagesForFid(fid, async (messages) => {
-                await processMessages({
-                    db,
-                    messages,
-                    operation: 'merge',
-                    deletedMessages: [],
-                    handler: this,
-                })
-                // if (missingInDb) {
-                //     await handleMissingMessage({
-                //         db,
-                //         message,
-                //         handler: this,
-                //     })
-                // } else if (prunedInDb || revokedInDb) {
-                //     const messageDesc = prunedInDb
-                //         ? 'pruned'
-                //         : revokedInDb
-                //           ? 'revoked'
-                //           : 'existing'
-                //     log.info(
-                //         `Reconciled ${messageDesc} message ${bytesToHexString(
-                //             message.hash,
-                //         )._unsafeUnwrap()}`,
-                //     )
-                // }
+            await reconcileMessagesForFid({
+                client: this.hubSubscriber.hubClient,
+                log,
+                fid,
+                onHubMessage: async (messages) => {
+                    await processMessages({
+                        db,
+                        messages,
+                    })
+                },
             })
         }
     }
 
-    async backfillFids(fids: number[], backfillQueue: Queue) {
+    async backfillFids({
+        fids,
+        backfillQueue,
+    }: { fids: number[]; backfillQueue: Queue }) {
         const startedAt = Date.now()
         if (fids.length === 0) {
             const maxFidResult = await this.hubSubscriber.hubClient?.getFids({
@@ -352,7 +317,7 @@ if (
             : []
         log.info(`Backfilling fids: ${fids}`)
         const backfillQueue = getQueue(app.redis.client)
-        await app.backfillFids(fids, backfillQueue)
+        await app.backfillFids({ fids, backfillQueue })
 
         // Start the worker after initiating a backfill
         const worker = getWorker(app, app.redis.client, log, CONCURRENCY)

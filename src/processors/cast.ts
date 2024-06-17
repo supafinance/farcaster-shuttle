@@ -1,20 +1,25 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
 import { eq } from 'drizzle-orm'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { toHex } from 'viem'
-import { db } from '../lib/drizzle'
 import { casts } from '../lib/drizzle/schema.ts'
 import { log } from '../log.ts'
 import { formatCasts } from './utils'
 
 /**
  * Insert casts in the database
- * @param {Message[]} msgs Hub events in JSON format
+ * @param {Object} args
+ * @param {Message[]} args.msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} args.trx The database transaction
  */
-export async function insertCasts(msgs: Message[]) {
+export async function insertCasts({
+    msgs,
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     const values = formatCasts(msgs)
 
     try {
-        await db.insert(casts).values(values).onConflictDoNothing().execute()
+        await trx.insert(casts).values(values).onConflictDoNothing().execute()
 
         log.debug('CASTS INSERTED')
     } catch (error) {
@@ -24,9 +29,14 @@ export async function insertCasts(msgs: Message[]) {
 
 /**
  * Add deletedAt to a cast in the database
- * @param {Message[]} msgs Hub events in JSON format
+ * @param {Object} args
+ * @param {Message[]} args.msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} args.trx The database transaction
  */
-export async function deleteCasts(msgs: Message[]) {
+export async function deleteCasts({
+    msgs,
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     try {
         for (const msg of msgs) {
             const data = msg.data
@@ -35,7 +45,7 @@ export async function deleteCasts(msgs: Message[]) {
                 throw new Error('Unexpected missing data or castRemoveBody')
             }
 
-            await db
+            await trx
                 .update(casts)
                 .set({
                     deletedAt: new Date(
