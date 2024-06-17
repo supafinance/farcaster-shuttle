@@ -20,12 +20,12 @@ export class MessageReconciliation {
     async reconcileMessagesForFid(
         fid: number,
         onHubMessage: ({
-            message,
+            messages,
             missingInDb,
             prunedInDb,
             revokedInDb,
         }: {
-            message: Message
+            messages: Message[]
             missingInDb: boolean
             prunedInDb: boolean
             revokedInDb: boolean
@@ -58,12 +58,12 @@ export class MessageReconciliation {
         fid: number
         type: MessageType
         onHubMessage: ({
-            message,
+            messages,
             missingInDb,
             prunedInDb,
             revokedInDb,
         }: {
-            message: Message
+            messages: Message[]
             missingInDb: boolean
             prunedInDb: boolean
             revokedInDb: boolean
@@ -75,7 +75,7 @@ export class MessageReconciliation {
             type,
         })) {
             if (messages.length === 0) {
-                this.log.info(`No messages of type ${type} for FID ${fid}`)
+                this.log.debug(`No messages of type ${type} for FID ${fid}`)
                 continue
             }
 
@@ -107,26 +107,25 @@ export class MessageReconciliation {
                     break
             }
 
-            for (const message of messages) {
-                // always attempt to add to db, and do nothing on conflict
-                await onHubMessage({
-                    message,
-                    missingInDb: true,
-                    prunedInDb: false,
-                    revokedInDb: false,
-                })
-            }
+            await onHubMessage({
+                messages,
+                missingInDb: true,
+                prunedInDb: false,
+                revokedInDb: false,
+            })
+
+            // for (const message of messages) {
+            //     // always attempt to add to db, and do nothing on conflict
+            //     await onHubMessage({
+            //         messages,
+            //         missingInDb: true,
+            //         prunedInDb: false,
+            //         revokedInDb: false,
+            //     })
+            // }
         }
 
-        // // todo: Next, reconcile messages that are in the database but not in the hub
-        // const dbMessages = await this.allActiveDbMessagesOfTypeForFid(fid, type)
-        // for (const dbMessage of dbMessages) {
-        //     if (dbMessage.hash === null) {
-        //         continue
-        //     }
-        //     const key = toHex(dbMessage.hash)
-        //     await onDbMessage?.(dbMessage, !hubMessagesByHash[key])
-        // }
+        // todo: Next, reconcile messages that are in the database but not in the hub
     }
 
     private async *allHubMessagesOfTypeForFid({
@@ -136,7 +135,7 @@ export class MessageReconciliation {
         let fn: any
         switch (type) {
             case MessageType.CAST_ADD:
-                fn = this.getAllCastMessagesByFidInBatchesOf
+                // fn = this.getAllCastMessagesByFidInBatchesOf
                 break
             case MessageType.REACTION_ADD:
                 fn = this.getAllReactionMessagesByFidInBatchesOf
@@ -153,15 +152,21 @@ export class MessageReconciliation {
             default:
                 throw `Unknown message type ${type}`
         }
-        for await (const messages of fn.call(this, fid, MAX_PAGE_SIZE)) {
+        for await (const messages of fn.call(this, {
+            fid,
+            pageSize: MAX_PAGE_SIZE,
+        })) {
             yield messages as Message[]
         }
     }
 
-    private async *getAllCastMessagesByFidInBatchesOf(
-        fid: number,
-        pageSize: number,
-    ) {
+    private async *getAllCastMessagesByFidInBatchesOf({
+        fid,
+        pageSize,
+    }: {
+        fid: number
+        pageSize: number
+    }) {
         let result = await this.client.getAllCastMessagesByFid({
             pageSize,
             fid,
@@ -186,10 +191,13 @@ export class MessageReconciliation {
         }
     }
 
-    private async *getAllReactionMessagesByFidInBatchesOf(
-        fid: number,
-        pageSize: number,
-    ) {
+    private async *getAllReactionMessagesByFidInBatchesOf({
+        fid,
+        pageSize,
+    }: {
+        fid: number
+        pageSize: number
+    }) {
         let result = await this.client.getAllReactionMessagesByFid({
             pageSize,
             fid,
@@ -214,10 +222,13 @@ export class MessageReconciliation {
         }
     }
 
-    private async *getAllLinkMessagesByFidInBatchesOf(
-        fid: number,
-        pageSize: number,
-    ) {
+    private async *getAllLinkMessagesByFidInBatchesOf({
+        fid,
+        pageSize,
+    }: {
+        fid: number
+        pageSize: number
+    }) {
         let result = await this.client.getAllLinkMessagesByFid({
             pageSize,
             fid,
@@ -242,10 +253,13 @@ export class MessageReconciliation {
         }
     }
 
-    private async *getAllVerificationMessagesByFidInBatchesOf(
-        fid: number,
-        pageSize: number,
-    ) {
+    private async *getAllVerificationMessagesByFidInBatchesOf({
+        fid,
+        pageSize,
+    }: {
+        fid: number
+        pageSize: number
+    }) {
         let result = await this.client.getAllVerificationMessagesByFid({
             pageSize,
             fid,
@@ -270,10 +284,13 @@ export class MessageReconciliation {
         }
     }
 
-    private async *getAllUserDataMessagesByFidInBatchesOf(
-        fid: number,
-        pageSize: number,
-    ) {
+    private async *getAllUserDataMessagesByFidInBatchesOf({
+        fid,
+        pageSize,
+    }: {
+        fid: number
+        pageSize: number
+    }) {
         let result = await this.client.getAllUserDataMessagesByFid({
             pageSize,
             fid,

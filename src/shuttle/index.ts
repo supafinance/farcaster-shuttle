@@ -1,4 +1,5 @@
 import type { Message } from '@farcaster/hub-nodejs'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import type { DB } from './db'
 
 export * from './db'
@@ -28,13 +29,13 @@ export type ProcessResult = {
 export interface MessageHandler {
     handleMessageMerge({
         message,
-        txn,
+        trx,
         operation,
         state,
         wasMissed,
     }: {
         message: Message
-        txn: DB
+        trx: DB | PostgresJsTransaction<any, any>
         operation: StoreMessageOperation
         state: MessageState
         wasMissed: boolean

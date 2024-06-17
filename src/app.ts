@@ -42,8 +42,8 @@ import {
     RedisClient,
     type StoreMessageOperation,
     getHubClient,
-    handleMissingMessage,
     processHubEvent,
+    processMessages,
 } from './shuttle'
 import { getQueue, getWorker } from './worker.ts'
 
@@ -106,11 +106,11 @@ export class App implements MessageHandler {
     static async processMessagesOfType({
         messages,
         type,
-        txn,
+        trx,
     }: {
         messages: Message[]
         type: MessageType
-        txn: PostgresJsTransaction<any, any>
+        trx: PostgresJsTransaction<any, any>
     }): Promise<void> {
         switch (type) {
             // case MessageType.CAST_ADD:
@@ -122,43 +122,43 @@ export class App implements MessageHandler {
             case MessageType.REACTION_ADD:
                 await insertReactions({
                     msgs: messages,
-                    txn,
+                    trx,
                 })
                 break
             case MessageType.REACTION_REMOVE:
                 await deleteReactions({
                     msgs: messages,
-                    txn,
+                    trx,
                 })
                 break
             case MessageType.VERIFICATION_ADD_ETH_ADDRESS:
                 await insertVerifications({
                     msgs: messages,
-                    txn,
+                    trx,
                 })
                 break
             case MessageType.VERIFICATION_REMOVE:
                 await deleteVerifications({
                     msgs: messages,
-                    txn,
+                    trx,
                 })
                 break
             case MessageType.USER_DATA_ADD:
                 await insertUserDatas({
                     msgs: messages,
-                    txn,
+                    trx,
                 })
                 break
             case MessageType.LINK_ADD:
                 await insertLinks({
                     msgs: messages,
-                    txn,
+                    trx,
                 })
                 break
             case MessageType.LINK_REMOVE:
                 await deleteLinks({
                     msgs: messages,
-                    txn,
+                    trx,
                 })
                 break
             default:
@@ -168,13 +168,13 @@ export class App implements MessageHandler {
 
     async handleMessageMerge({
         message,
-        txn,
+        trx,
         operation,
         state,
         wasMissed,
     }: {
         message: Message
-        txn: PostgresJsTransaction<any, any>
+        trx: PostgresJsTransaction<any, any>
         operation: StoreMessageOperation
         state: MessageState
         wasMissed: boolean
@@ -183,7 +183,7 @@ export class App implements MessageHandler {
             await App.processMessagesOfType({
                 messages: [message],
                 type: message.data.type,
-                txn,
+                trx,
             })
         }
 
@@ -226,21 +226,32 @@ export class App implements MessageHandler {
         for (const fid of fids) {
             await reconciler.reconcileMessagesForFid(
                 fid,
-                async ({ message, missingInDb, prunedInDb, revokedInDb }) => {
-                    if (missingInDb) {
-                        await handleMissingMessage(db, message, this)
-                    } else if (prunedInDb || revokedInDb) {
-                        const messageDesc = prunedInDb
-                            ? 'pruned'
-                            : revokedInDb
-                              ? 'revoked'
-                              : 'existing'
-                        log.info(
-                            `Reconciled ${messageDesc} message ${bytesToHexString(
-                                message.hash,
-                            )._unsafeUnwrap()}`,
-                        )
-                    }
+                async ({ messages, missingInDb, prunedInDb, revokedInDb }) => {
+                    await processMessages({
+                        db,
+                        messages,
+                        operation: 'merge',
+                        deletedMessages: [],
+                        handler: this,
+                    })
+                    // if (missingInDb) {
+                    //     await handleMissingMessage({
+                    //         db,
+                    //         message,
+                    //         handler: this,
+                    //     })
+                    // } else if (prunedInDb || revokedInDb) {
+                    //     const messageDesc = prunedInDb
+                    //         ? 'pruned'
+                    //         : revokedInDb
+                    //           ? 'revoked'
+                    //           : 'existing'
+                    //     log.info(
+                    //         `Reconciled ${messageDesc} message ${bytesToHexString(
+                    //             message.hash,
+                    //         )._unsafeUnwrap()}`,
+                    //     )
+                    // }
                 },
             )
         }

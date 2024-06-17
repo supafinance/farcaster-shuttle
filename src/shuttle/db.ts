@@ -3,10 +3,10 @@ import type {
     UserDataType,
     UserNameType,
 } from '@farcaster/hub-nodejs'
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import type { Hex } from 'viem'
+import type { db } from '../lib/drizzle'
 
-export type DB = PostgresJsDatabase<any>
+export type DB = typeof db
 
 export type Fid = number
 export type VerificationProtocol = 'ethereum' | 'solana'

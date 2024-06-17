@@ -8,11 +8,12 @@ import { formatLinks } from './utils.ts'
 /**
  * Inserts links into the database.
  * @param {Message[]} msgs - The messages to insert.
+ * @param {PostgresJsTransaction} trx - The database transaction.
  */
 export async function insertLinks({
     msgs,
-    txn,
-}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     const values = formatLinks(msgs)
 
     if (!values || values.length === 0) {
@@ -20,10 +21,11 @@ export async function insertLinks({
     }
 
     try {
-        await txn
+        const res = await trx
             .insert(links)
             .values(values)
             .onConflictDoNothing() /*.execute()*/
+            .execute()
         log.debug('LINKS INSERTED')
     } catch (error) {
         log.error(error, 'ERROR INSERTING LINK')
@@ -33,17 +35,18 @@ export async function insertLinks({
 /**
  * Deletes links from the database.
  * @param {Message[]} msgs - The messages to delete.
+ * @param {PostgresJsTransaction} trx - The database transaction.
  */
 export async function deleteLinks({
     msgs,
-    txn,
-}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     try {
         for (const msg of msgs) {
             const data = msg.data
 
             if (data) {
-                await txn
+                await trx
                     .update(links)
                     .set({
                         deletedAt: new Date(

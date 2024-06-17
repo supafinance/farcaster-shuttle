@@ -9,15 +9,16 @@ import { formatReactions } from './utils'
 /**
  * Insert a reaction in the database
  * @param {Message[]} msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} trx The database transaction
  */
 export async function insertReactions({
     msgs,
-    txn,
-}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     const values = formatReactions(msgs)
 
     try {
-        await txn.insert(reactions).values(values).onConflictDoNothing()
+        await trx.insert(reactions).values(values).onConflictDoNothing()
         // .execute()
 
         log.debug('REACTIONS INSERTED')
@@ -29,11 +30,12 @@ export async function insertReactions({
 /**
  * Soft delete a reaction in the database by setting the deletedAt field
  * @param {Message[]} msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} trx The database transaction
  */
 export async function deleteReactions({
     msgs,
-    txn,
-}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     try {
         for (const msg of msgs) {
             const data = msg.data
@@ -43,7 +45,7 @@ export async function deleteReactions({
             const reaction = data.reactionBody
 
             if (reaction.targetCastId) {
-                await txn
+                await trx
                     .update(reactions)
                     .set({
                         deletedAt: new Date(
@@ -61,7 +63,7 @@ export async function deleteReactions({
                         ),
                     )
             } else if (reaction.targetUrl) {
-                await txn
+                await trx
                     .update(reactions)
                     .set({
                         deletedAt: new Date(

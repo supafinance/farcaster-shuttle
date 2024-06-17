@@ -5,8 +5,8 @@ import { log } from '../log.ts'
 
 export async function insertUserDatas({
     msgs,
-    txn,
-}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     log.debug('INSERTING USER DATA')
     await Promise.all(
         msgs.map(async (msg) => {
@@ -32,7 +32,7 @@ export async function insertUserDatas({
                 // PFP
                 case 1: {
                     try {
-                        await txn
+                        await trx
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),
@@ -56,7 +56,7 @@ export async function insertUserDatas({
                 // DISPLAY
                 case 2: {
                     try {
-                        await txn
+                        await trx
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),
@@ -82,7 +82,7 @@ export async function insertUserDatas({
                 // BIO
                 case 3: {
                     try {
-                        await txn
+                        await trx
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),
@@ -108,7 +108,7 @@ export async function insertUserDatas({
                 // URL
                 case 5: {
                     try {
-                        await txn
+                        await trx
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),
@@ -134,7 +134,7 @@ export async function insertUserDatas({
                 // USERNAME
                 case 6: {
                     try {
-                        await txn
+                        await trx
                             .insert(userData)
                             .values({
                                 fid: String(data.fid),

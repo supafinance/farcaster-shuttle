@@ -9,11 +9,12 @@ import { formatVerifications } from './utils.ts'
 /**
  * Insert a new verification in the database
  * @param {Message[]} msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} trx The database transaction
  */
 export async function insertVerifications({
     msgs,
-    txn,
-}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     const values = formatVerifications(msgs)
 
     if (!values || values.length === 0) {
@@ -21,7 +22,7 @@ export async function insertVerifications({
     }
 
     try {
-        await txn.insert(verifications).values(values).onConflictDoNothing()
+        await trx.insert(verifications).values(values).onConflictDoNothing()
         log.debug('VERIFICATIONS INSERTED')
     } catch (error) {
         log.error(error, 'ERROR INSERTING VERIFICATION')
@@ -31,11 +32,12 @@ export async function insertVerifications({
 /**
  * Soft delete a verification from the database by setting the deletedAt field
  * @param {Message[]} msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} trx The database transaction
  */
 export async function deleteVerifications({
     msgs,
-    txn,
-}: { msgs: Message[]; txn: PostgresJsTransaction<any, any> }) {
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     try {
         for (const msg of msgs) {
             const data = msg.data
@@ -51,7 +53,7 @@ export async function deleteVerifications({
                 return
             }
 
-            await txn
+            await trx
                 .update(verifications)
                 .set({
                     deletedAt: new Date(

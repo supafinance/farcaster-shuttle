@@ -47,11 +47,15 @@ export async function processHubEvent(
     }
 }
 
-export async function handleMissingMessage(
-    db: DB,
-    message: Message,
-    handler: MessageHandler,
-) {
+export async function handleMissingMessage({
+    db,
+    message,
+    handler,
+}: {
+    db: DB
+    message: Message
+    handler: MessageHandler
+}) {
     log.debug('Handling missing message')
     await processMessage({
         db,
@@ -136,7 +140,7 @@ async function processMessage({
                     const state = getMessageState(deletedMessage, 'delete')
                     await handler.handleMessageMerge({
                         message: deletedMessage,
-                        txn: trx,
+                        trx,
                         operation: 'delete',
                         state,
                         wasMissed,
@@ -147,10 +151,52 @@ async function processMessage({
         const state = getMessageState(message, operation)
         await handler.handleMessageMerge({
             message,
-            txn: trx,
+            trx,
             operation,
             state,
             wasMissed,
         })
+    })
+}
+
+export async function processMessages({
+    db,
+    messages,
+    handler,
+    operation,
+    deletedMessages = [],
+}: {
+    db: DB
+    messages: Message[]
+    handler: MessageHandler
+    operation: StoreMessageOperation
+    deletedMessages?: Message[]
+}) {
+    await db.transaction(async (trx) => {
+        if (deletedMessages.length > 0) {
+            await Promise.all(
+                deletedMessages.map(async (deletedMessage) => {
+                    const state = getMessageState(deletedMessage, 'delete')
+                    await handler.handleMessageMerge({
+                        message: deletedMessage,
+                        trx,
+                        operation: 'delete',
+                        state,
+                        wasMissed: true,
+                    })
+                }),
+            )
+        }
+
+        for await (const message of messages) {
+            const state = getMessageState(message, operation)
+            await handler.handleMessageMerge({
+                message,
+                trx,
+                operation,
+                state,
+                wasMissed: true,
+            })
+        }
     })
 }
