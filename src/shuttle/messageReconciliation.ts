@@ -19,17 +19,7 @@ export class MessageReconciliation {
 
     async reconcileMessagesForFid(
         fid: number,
-        onHubMessage: ({
-            messages,
-            missingInDb,
-            prunedInDb,
-            revokedInDb,
-        }: {
-            messages: Message[]
-            missingInDb: boolean
-            prunedInDb: boolean
-            revokedInDb: boolean
-        }) => Promise<void>,
+        onHubMessage: (messages: Message[]) => Promise<void>,
     ) {
         for (const type of [
             // MessageType.CAST_ADD,
@@ -57,17 +47,7 @@ export class MessageReconciliation {
     }: {
         fid: number
         type: MessageType
-        onHubMessage: ({
-            messages,
-            missingInDb,
-            prunedInDb,
-            revokedInDb,
-        }: {
-            messages: Message[]
-            missingInDb: boolean
-            prunedInDb: boolean
-            revokedInDb: boolean
-        }) => Promise<void>
+        onHubMessage: (messages: Message[]) => Promise<void>
     }) {
         // First, reconcile messages that are in the hub but not in the database
         for await (const messages of this.allHubMessagesOfTypeForFid({
@@ -107,12 +87,7 @@ export class MessageReconciliation {
                     break
             }
 
-            await onHubMessage({
-                messages,
-                missingInDb: true,
-                prunedInDb: false,
-                revokedInDb: false,
-            })
+            await onHubMessage(messages)
 
             // for (const message of messages) {
             //     // always attempt to add to db, and do nothing on conflict

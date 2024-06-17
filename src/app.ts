@@ -224,36 +224,33 @@ export class App implements MessageHandler {
             log,
         })
         for (const fid of fids) {
-            await reconciler.reconcileMessagesForFid(
-                fid,
-                async ({ messages, missingInDb, prunedInDb, revokedInDb }) => {
-                    await processMessages({
-                        db,
-                        messages,
-                        operation: 'merge',
-                        deletedMessages: [],
-                        handler: this,
-                    })
-                    // if (missingInDb) {
-                    //     await handleMissingMessage({
-                    //         db,
-                    //         message,
-                    //         handler: this,
-                    //     })
-                    // } else if (prunedInDb || revokedInDb) {
-                    //     const messageDesc = prunedInDb
-                    //         ? 'pruned'
-                    //         : revokedInDb
-                    //           ? 'revoked'
-                    //           : 'existing'
-                    //     log.info(
-                    //         `Reconciled ${messageDesc} message ${bytesToHexString(
-                    //             message.hash,
-                    //         )._unsafeUnwrap()}`,
-                    //     )
-                    // }
-                },
-            )
+            await reconciler.reconcileMessagesForFid(fid, async (messages) => {
+                await processMessages({
+                    db,
+                    messages,
+                    operation: 'merge',
+                    deletedMessages: [],
+                    handler: this,
+                })
+                // if (missingInDb) {
+                //     await handleMissingMessage({
+                //         db,
+                //         message,
+                //         handler: this,
+                //     })
+                // } else if (prunedInDb || revokedInDb) {
+                //     const messageDesc = prunedInDb
+                //         ? 'pruned'
+                //         : revokedInDb
+                //           ? 'revoked'
+                //           : 'existing'
+                //     log.info(
+                //         `Reconciled ${messageDesc} message ${bytesToHexString(
+                //             message.hash,
+                //         )._unsafeUnwrap()}`,
+                //     )
+                // }
+            })
         }
     }
 

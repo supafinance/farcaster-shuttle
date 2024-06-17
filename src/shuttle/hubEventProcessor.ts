@@ -172,7 +172,7 @@ export async function processMessages({
     operation: StoreMessageOperation
     deletedMessages?: Message[]
 }) {
-    log.info('messages:', messages.length)
+    log.info(`messages: ${messages.length}`)
     await db
         .transaction(async (trx) => {
             if (deletedMessages.length > 0) {
@@ -204,6 +204,6 @@ export async function processMessages({
             ])
         })
         .catch((e) => {
-            log.error('error in db transaction', e)
+            log.error(`error in db transaction ${e}`)
         })
 }
