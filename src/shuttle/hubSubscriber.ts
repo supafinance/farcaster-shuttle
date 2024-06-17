@@ -68,14 +68,21 @@ export class BaseHubSubscriber extends HubSubscriber {
     private totalShards: number | undefined
     private shardIndex: number | undefined
 
-    constructor(
-        label: string,
-        hubClient: HubRpcClient,
-        log: Logger,
-        eventTypes?: HubEventType[],
-        totalShards?: number,
-        shardIndex?: number,
-    ) {
+    constructor({
+        label,
+        hubClient,
+        log,
+        eventTypes,
+        totalShards,
+        shardIndex,
+    }: {
+        label: string
+        hubClient: HubRpcClient
+        log: Logger
+        eventTypes?: HubEventType[]
+        totalShards?: number
+        shardIndex?: number
+    }) {
         super()
         this.label = label
         this.hubClient = hubClient
@@ -225,7 +232,14 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
         totalShards?: number
         shardIndex?: number
     }) {
-        super(label, hubClient.client, log, eventTypes, totalShards, shardIndex)
+        super({
+            label,
+            hubClient: hubClient.client,
+            log,
+            eventTypes,
+            totalShards,
+            shardIndex,
+        })
         this.eventStream = eventStream
         this.redis = redis
         this.streamKey = `hub:${hubClient.host}:evt:msg:${shardKey}`

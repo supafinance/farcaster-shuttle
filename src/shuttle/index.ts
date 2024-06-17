@@ -7,7 +7,6 @@ export * from './redis'
 export * from './hub'
 export * from './hubSubscriber'
 export * from './hubEventProcessor'
-export * from './messageProcessor'
 export * from './messageReconciliation'
 export * from './eventStream'
 
