@@ -172,6 +172,7 @@ export async function processMessages({
     operation: StoreMessageOperation
     deletedMessages?: Message[]
 }) {
+    console.log('messages:', messages)
     await db.transaction(async (trx) => {
         if (deletedMessages.length > 0) {
             await Promise.all(
@@ -188,15 +189,17 @@ export async function processMessages({
             )
         }
 
-        for await (const message of messages) {
-            const state = getMessageState(message, operation)
-            await handler.handleMessageMerge({
-                message,
-                trx,
-                operation,
-                state,
-                wasMissed: true,
-            })
-        }
+        await Promise.all([
+            ...messages.map(async (message) => {
+                const state = getMessageState(message, operation)
+                await handler.handleMessageMerge({
+                    message,
+                    trx,
+                    operation,
+                    state,
+                    wasMissed: true,
+                })
+            }),
+        ])
     })
 }
