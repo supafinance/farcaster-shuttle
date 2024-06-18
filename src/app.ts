@@ -67,13 +67,13 @@ export class App implements MessageHandler {
         this.streamConsumer = streamConsumer
     }
 
-    static create(
-        redisUrl: string,
-        hubUrl: string,
-        totalShards: number,
-        shardIndex: number,
-        hubSSL = false,
-    ) {
+    static create() {
+        const redisUrl = REDIS_URL
+        const hubUrl = HUB_HOST
+        const totalShards = TOTAL_SHARDS
+        const shardIndex = SHARD_INDEX
+        const hubSSL = HUB_SSL ?? false
+
         // creates a hub rpc client
         const hub = getHubClient(hubUrl, { ssl: hubSSL })
         const redis = RedisClient.create({ redisUrl })
@@ -100,6 +100,13 @@ export class App implements MessageHandler {
         return new App({ redis, hubSubscriber, streamConsumer })
     }
 
+    /**
+     * Process messages of a given type
+     * @param {object} args - The arguments object.
+     * @param {Message[]} args.messages - The messages to process.
+     * @param {MessageType} args.type - The type of message to process.
+     * @param {PostgresJsTransaction} args.trx - The database transaction.
+     */
     static async processMessagesOfType({
         messages,
         type,
@@ -287,32 +294,26 @@ if (
         url.pathToFileURL(process.argv[1] || '').toString(),
     )
 ) {
+    /**
+     * Starts the shuttle listening to current events from the hub
+     */
     async function start() {
         log.info(
             `Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
-        const app = App.create(
-            REDIS_URL,
-            HUB_HOST,
-            TOTAL_SHARDS,
-            SHARD_INDEX,
-            HUB_SSL,
-        )
+        const app = App.create()
         log.info('Starting shuttle')
         await app.start()
     }
 
+    /**
+     * Queues up backfill for the worker
+     */
     async function backfill() {
         log.info(
             `Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
-        const app = App.create(
-            REDIS_URL,
-            HUB_HOST,
-            TOTAL_SHARDS,
-            SHARD_INDEX,
-            HUB_SSL,
-        )
+        const app = App.create()
         const fids = BACKFILL_FIDS
             ? BACKFILL_FIDS.split(',').map((fid) => Number.parseInt(fid))
             : []
@@ -320,23 +321,23 @@ if (
         const backfillQueue = getQueue(app.redis.client)
         await app.backfillFids({ fids, backfillQueue })
 
+        // set last processed event id to 0
+        await app.redis.setLastProcessedEvent({ hubId, eventId: 0 })
+
         // Start the worker after initiating a backfill
         const worker = getWorker(app, app.redis.client, log, CONCURRENCY)
         await worker.run()
         return
     }
 
+    /**
+     * Starts the backfill worker
+     */
     async function worker() {
         log.info(
             `Starting worker connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
-        const app = App.create(
-            REDIS_URL,
-            HUB_HOST,
-            TOTAL_SHARDS,
-            SHARD_INDEX,
-            HUB_SSL,
-        )
+        const app = App.create()
         const worker = getWorker(app, app.redis.client, log, CONCURRENCY)
         await worker.run()
     }

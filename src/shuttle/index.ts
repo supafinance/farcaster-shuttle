@@ -10,9 +10,6 @@ export * from './hubEventProcessor'
 export * from './messageReconciliation'
 export * from './eventStream'
 
-export type StoreMessageOperation = 'merge' | 'delete' | 'revoke' | 'prune'
-export type MessageState = 'created' | 'deleted'
-
 export type ProcessResult = {
     skipped: boolean
 }

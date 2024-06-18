@@ -7,8 +7,9 @@ import { formatLinks } from './utils.ts'
 
 /**
  * Inserts links into the database.
- * @param {Message[]} msgs - The messages to insert.
- * @param {PostgresJsTransaction} trx - The database transaction.
+ * @param {object} args - The arguments object.
+ * @param {Message[]} args.msgs - The messages to insert.
+ * @param {PostgresJsTransaction} args.trx - The database transaction.
  */
 export async function insertLinks({
     msgs,
@@ -21,11 +22,7 @@ export async function insertLinks({
     }
 
     try {
-        const res = await trx
-            .insert(links)
-            .values(values)
-            .onConflictDoNothing() /*.execute()*/
-            .execute()
+        await trx.insert(links).values(values).onConflictDoNothing().execute()
         log.debug('LINKS INSERTED')
     } catch (error) {
         log.error(error, 'ERROR INSERTING LINK')
@@ -34,8 +31,9 @@ export async function insertLinks({
 
 /**
  * Deletes links from the database.
- * @param {Message[]} msgs - The messages to delete.
- * @param {PostgresJsTransaction} trx - The database transaction.
+ * @param {object} args - The arguments object.
+ * @param {Message[]} args.msgs - The messages to delete.
+ * @param {PostgresJsTransaction} args.trx - The database transaction.
  */
 export async function deleteLinks({
     msgs,

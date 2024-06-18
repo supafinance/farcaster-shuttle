@@ -8,7 +8,7 @@ import { formatCasts } from './utils'
 
 /**
  * Insert casts in the database
- * @param {Object} args
+ * @param {object} args - The arguments object.
  * @param {Message[]} args.msgs Hub events in JSON format
  * @param {PostgresJsTransaction} args.trx The database transaction
  */

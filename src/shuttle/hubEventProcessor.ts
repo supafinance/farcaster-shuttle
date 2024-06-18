@@ -7,7 +7,6 @@ import {
     isRevokeMessageHubEvent,
 } from '@farcaster/hub-nodejs'
 import { App } from '../app.ts'
-import { log } from '../log.ts'
 import type { MessageHandler } from './'
 import type { DB } from './db'
 
@@ -67,28 +66,6 @@ async function processMessage({
     })
 }
 
-// export async function processMessages({
-//     db,
-//     messages,
-// }: {
-//     db: DB
-//     messages: Message[]
-// }) {
-//     for (const message of messages) {
-//         await db.transaction(async (trx) => {
-//             if (message.data?.type) {
-//                 await App.processMessagesOfType({
-//                     messages: [message],
-//                     type: message.data?.type,
-//                     trx,
-//                 })
-//             }
-//         })
-//     }
-//
-//     log.warn(`Processed ${messages.length} messages`)
-// }
-
 export async function processMessages({
     db,
     messages,
@@ -105,6 +82,4 @@ export async function processMessages({
             trx,
         })
     })
-
-    log.warn(`Processed ${messages.length} messages`)
 }
