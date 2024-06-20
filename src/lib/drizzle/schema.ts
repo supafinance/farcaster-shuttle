@@ -1,9 +1,12 @@
 import { relations } from 'drizzle-orm'
 import {
+    boolean,
     decimal,
+    index,
     integer,
     json,
     pgTable,
+    primaryKey,
     serial,
     smallint,
     text,
@@ -16,7 +19,7 @@ export const users = pgTable('users', {
     id: varchar('id', { length: 100 }).primaryKey(), // passkey rawId
     address: varchar('address', { length: 42 }).$type<Address>().notNull(), // passkey account
     pubKey: varchar('pubKey', { length: 130 }).$type<Hex>().notNull(), // passkey pubKey
-    fid: integer('fid').$type<number>(), // Farcaster ID
+    fid: decimal('fid', { precision: 12, scale: 0 }),
 })
 
 export const userData = pgTable('user_data', {
@@ -43,6 +46,7 @@ export const userData = pgTable('user_data', {
     bioUpdatedAt: timestamp('bio_updated_at', { mode: 'string' }),
     url: text('url'),
     urlUpdatedAt: timestamp('url_updated_at', { mode: 'string' }),
+    powerBadge: boolean('power_badge').notNull().default(false),
 })
 
 export const userDataRelations = relations(userData, ({ many }) => ({
@@ -51,24 +55,32 @@ export const userDataRelations = relations(userData, ({ many }) => ({
     verifications: many(verifications),
 }))
 
-export const links = pgTable('links', {
-    id: serial('id').primaryKey(),
-    // hash: varchar('hash', { length: 256 }).$type<Hex>(),
-    fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
-    targetFid: decimal('target_fid', { precision: 12, scale: 0 }).notNull(),
-    createdAt: timestamp('created_at', { mode: 'string' })
-        .notNull()
-        .defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' })
-        .notNull()
-        .defaultNow(),
-    deletedAt: timestamp('deleted_at', { mode: 'string' }),
-    timestamp: timestamp('timestamp', { mode: 'string' })
-        .notNull()
-        .defaultNow(),
-    displayTimestamp: timestamp('display_timestamp', { mode: 'string' }),
-    type: text('type').$type<'follow'>(),
-})
+export const links = pgTable(
+    'links',
+    {
+        id: serial('id').primaryKey(),
+        // hash: varchar('hash', { length: 256 }).$type<Hex>(),
+        fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
+        targetFid: decimal('target_fid', { precision: 12, scale: 0 }).notNull(),
+        createdAt: timestamp('created_at', { mode: 'string' })
+            .notNull()
+            .defaultNow(),
+        updatedAt: timestamp('updated_at', { mode: 'string' })
+            .notNull()
+            .defaultNow(),
+        deletedAt: timestamp('deleted_at', { mode: 'string' }),
+        timestamp: timestamp('timestamp', { mode: 'string' })
+            .notNull()
+            .defaultNow(),
+        displayTimestamp: timestamp('display_timestamp', { mode: 'string' }),
+        type: text('type').$type<'follow'>(),
+    },
+    (table) => {
+        return {
+            followingIdx: index('following_idx').on(table.fid),
+        }
+    },
+)
 
 export const linkRelations = relations(links, ({ one }) => ({
     follower: one(userData, {
@@ -81,22 +93,30 @@ export const linkRelations = relations(links, ({ one }) => ({
     }),
 }))
 
-export const verifications = pgTable('verifications', {
-    id: serial('id').primaryKey(),
-    // hash: varchar('hash', { length: 256 }).$type<Hex>(),
-    createdAt: timestamp('created_at', { mode: 'string' })
-        .notNull()
-        .defaultNow(),
-    updatedAt: timestamp('updated_at', { mode: 'string' })
-        .notNull()
-        .defaultNow(),
-    timestamp: timestamp('timestamp', { mode: 'string' }).notNull(),
-    deletedAt: timestamp('deleted_at', { mode: 'string' }),
-    fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
-    signerAddress: varchar('signer_address', { length: 42 })
-        .notNull()
-        .$type<Address>(),
-})
+export const verifications = pgTable(
+    'verifications',
+    {
+        id: serial('id').primaryKey(),
+        // hash: varchar('hash', { length: 256 }).$type<Hex>(),
+        createdAt: timestamp('created_at', { mode: 'string' })
+            .notNull()
+            .defaultNow(),
+        updatedAt: timestamp('updated_at', { mode: 'string' })
+            .notNull()
+            .defaultNow(),
+        timestamp: timestamp('timestamp', { mode: 'string' }).notNull(),
+        deletedAt: timestamp('deleted_at', { mode: 'string' }),
+        fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
+        signerAddress: varchar('signer_address', { length: 42 })
+            .notNull()
+            .$type<Address>(),
+    },
+    (table) => {
+        return {
+            fidIdx: index('fid_idx').on(table.fid),
+        }
+    },
+)
 
 export const verificationRelations = relations(verifications, ({ one }) => ({
     userData: one(userData, {
@@ -172,3 +192,17 @@ export const casts = pgTable('casts', {
         .defaultNow(),
     deletedAt: timestamp('deleted_at', { mode: 'string' }),
 })
+
+export const socialScore = pgTable(
+    'social_score',
+    {
+        fid: decimal('fid', { precision: 12, scale: 0 }).notNull(),
+        targetFid: decimal('target_fid', { precision: 12, scale: 0 }).notNull(),
+        score: decimal('score', { precision: 12, scale: 1 }).notNull(),
+    },
+    (table) => {
+        return {
+            pk: primaryKey({ columns: [table.fid, table.targetFid] }),
+        }
+    },
+)

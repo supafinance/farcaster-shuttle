@@ -5,7 +5,8 @@
     "scripts": {
         "start": "tsx src/app.ts",
         "migrations:generate": "drizzle-kit generate",
-        "migrations:drop": "drizzle-kit drop --out=db/migrations"
+        "migrations:drop": "drizzle-kit drop --out=db/migrations",
+        "cron:power-badge": "tsx src/scripts/seed-power-badge.ts"
     },
     "devDependencies": {
         "@types/bun": "latest",

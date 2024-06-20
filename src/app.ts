@@ -17,9 +17,7 @@ import {
     SHARD_INDEX,
     TOTAL_SHARDS,
 } from './env.ts'
-import { db } from './lib/drizzle'
 import { log } from './log.ts'
-import { deleteCasts, insertCasts } from './processors/cast.ts'
 import { deleteLinks, insertLinks } from './processors/link.ts'
 import { deleteReactions, insertReactions } from './processors/reaction.ts'
 import { insertUserDatas } from './processors/userData.ts'
@@ -117,12 +115,12 @@ export class App implements MessageHandler {
         trx: PostgresJsTransaction<any, any>
     }): Promise<void> {
         switch (type) {
-            case MessageType.CAST_ADD:
-                await insertCasts({ msgs: messages, trx })
-                break
-            case MessageType.CAST_REMOVE:
-                await deleteCasts({ msgs: messages, trx })
-                break
+            // case MessageType.CAST_ADD:
+            //     await insertCasts({ msgs: messages, trx })
+            //     break
+            // case MessageType.CAST_REMOVE:
+            //     await deleteCasts({ msgs: messages, trx })
+            //     break
             case MessageType.REACTION_ADD:
                 await insertReactions({
                     msgs: messages,
@@ -215,7 +213,6 @@ export class App implements MessageHandler {
                 fid,
                 onHubMessage: async (messages, type) => {
                     await processMessages({
-                        db,
                         messages,
                         type,
                     })
@@ -284,7 +281,7 @@ export class App implements MessageHandler {
     }
 
     private async processHubEvent(hubEvent: HubEvent) {
-        await processHubEvent(db, hubEvent, this)
+        await processHubEvent(hubEvent, this)
     }
 }
 

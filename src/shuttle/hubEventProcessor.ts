@@ -7,11 +7,16 @@ import {
     isRevokeMessageHubEvent,
 } from '@farcaster/hub-nodejs'
 import { App } from '../app.ts'
+import { db } from '../lib/drizzle'
 import type { MessageHandler } from './'
 import type { DB } from './db'
 
+/**
+ * Processes a hub event.
+ * @param {HubEvent} event - The hub event to process.
+ * @param {MessageHandler} handler - The message handler.
+ */
 export async function processHubEvent(
-    db: DB,
     event: HubEvent,
     handler: MessageHandler,
 ) {
@@ -37,6 +42,14 @@ export async function processHubEvent(
     }
 }
 
+/**
+ * Processes a message.
+ * @param {object} args - The arguments object.
+ * @param {DB} args.db - The database connection.
+ * @param {Message} args.message  - The message to process.
+ * @param {MessageHandler} args.handler - The message handler.
+ * @param {Message[] | undefined} args.deletedMessages - The deleted messages.
+ */
 async function processMessage({
     db,
     message,
@@ -66,12 +79,16 @@ async function processMessage({
     })
 }
 
+/**
+ * Processes messages of a given type.
+ * @param {object} args - The arguments object.
+ * @param {Message[]} args.messages - The messages to process.
+ * @param {MessageType} args.type - The message type.
+ */
 export async function processMessages({
-    db,
     messages,
     type,
 }: {
-    db: DB
     messages: Message[]
     type: MessageType
 }) {
