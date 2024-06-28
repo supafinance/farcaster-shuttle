@@ -315,6 +315,10 @@ if (
             ? BACKFILL_FIDS.split(',').map((fid) => Number.parseInt(fid))
             : []
         log.info(`Backfilling fids: ${fids}`)
+
+        // clear redis db
+        await app.redis.client.flushdb()
+
         const backfillQueue = getQueue(app.redis.client)
         await app.backfillFids({ fids, backfillQueue })
 
