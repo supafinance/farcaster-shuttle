@@ -1,23 +1,25 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
-
-import type { AppDb } from '../db'
-import { log } from '../log'
+import { eq } from 'drizzle-orm'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
+import { toHex } from 'viem'
+import { casts } from '../lib/drizzle/schema.ts'
+import { log } from '../log.ts'
 import { formatCasts } from './utils'
 
 /**
  * Insert casts in the database
- * @param {Message[]} msgs Hub events in JSON format
- * @param {AppDb} db Database connection
+ * @param {object} args - The arguments object.
+ * @param {Message[]} args.msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} args.trx The database transaction
  */
-export async function insertCasts(msgs: Message[], db: AppDb) {
-    const casts = formatCasts(msgs)
+export async function insertCasts({
+    msgs,
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
+    const values = formatCasts(msgs)
 
     try {
-        await db
-            .insertInto('casts')
-            .values(casts)
-            .onConflict((oc) => oc.column('hash').doNothing())
-            .execute()
+        await trx.insert(casts).values(values).onConflictDoNothing().execute()
 
         log.debug('CASTS INSERTED')
     } catch (error) {
@@ -27,10 +29,14 @@ export async function insertCasts(msgs: Message[], db: AppDb) {
 
 /**
  * Add deletedAt to a cast in the database
- * @param {Message[]} msgs Hub events in JSON format
- * @param {AppDb} db Database connection
+ * @param {Object} args
+ * @param {Message[]} args.msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} args.trx The database transaction
  */
-export async function deleteCasts(msgs: Message[], db: AppDb) {
+export async function deleteCasts({
+    msgs,
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     try {
         for (const msg of msgs) {
             const data = msg.data
@@ -39,14 +45,14 @@ export async function deleteCasts(msgs: Message[], db: AppDb) {
                 throw new Error('Unexpected missing data or castRemoveBody')
             }
 
-            await db
-                .updateTable('casts')
+            await trx
+                .update(casts)
                 .set({
                     deletedAt: new Date(
                         fromFarcasterTime(data.timestamp)._unsafeUnwrap(),
-                    ),
+                    ).toISOString(),
                 })
-                .where('hash', '=', data.castRemoveBody?.targetHash)
+                .where(eq(casts.hash, toHex(data.castRemoveBody?.targetHash)))
                 .execute()
         }
 

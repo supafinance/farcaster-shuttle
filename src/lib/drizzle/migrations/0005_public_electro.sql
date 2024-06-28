@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "follower_idx" ON "links" USING btree ("target_fid");

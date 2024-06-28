@@ -2,6 +2,7 @@ import { HubEvent, extractEventTimestamp } from '@farcaster/hub-nodejs'
 import { type Cluster, type Redis, ReplyError } from 'ioredis'
 import type { Result } from 'neverthrow'
 import type { pino } from 'pino'
+import { MAX_EVENTS_PER_FETCH, MESSAGE_PROCESSING_CONCURRENCY } from '../env.ts'
 import { log } from '../log'
 import { statsd } from '../statsd'
 import { inBatchesOf, sleep } from '../utils'
@@ -41,7 +42,10 @@ export class EventStreamConnection {
     /**
      * Creates a consumer group for the given stream.
      */
-    async createGroup(key: string, consumerGroup: string) {
+    async createGroup({
+        key,
+        consumerGroup,
+    }: { key: string; consumerGroup: string }) {
         try {
             // Check if the group already exists
             const groups = (await this.client.xinfo('GROUPS', key)) as [
@@ -82,6 +86,8 @@ export class EventStreamConnection {
 
     /**
      * Adds one or more event to the stream at the specified key.
+     * @param {string} key The key of the stream
+     * @param {Buffer | Buffer[] }data The data to add to the stream
      */
     async add(key: string, data: Buffer | Buffer[]) {
         if (data instanceof Buffer) {
@@ -100,6 +106,9 @@ export class EventStreamConnection {
     /**
      * Reserves up to the specified number (default 1) of events from the stream for
      * the given consumer group.
+     * @param {string} key The key of the stream
+     * @param {string} consumerGroup The consumer group to reserve the events for
+     * @param {number} count The number of events to reserve
      */
     async reserve(key: string, consumerGroup: string, count = 1) {
         // Need `as any` because xreadgroupBuffer exists but not the ioredis types
@@ -225,8 +234,6 @@ export class EventStreamConnection {
 }
 
 const GROUP_NAME = 'hub_events'
-const MAX_EVENTS_PER_FETCH = 20
-const MESSAGE_PROCESSING_CONCURRENCY = 20
 const EVENT_PROCESSING_TIMEOUT = 10_000 // How long before retrying processing (millis)
 const EVENT_DELETION_THRESHOLD = 1000 * 60 * 60 * 24 // 1 day
 
@@ -251,13 +258,19 @@ export class HubEventStreamConsumer {
     private stream: EventStreamConnection
     private log: pino.Logger
 
-    constructor(
-        hub: HubClient,
-        eventStream: EventStreamConnection,
-        shardKey: string,
-        options: EventStreamConsumerOptions = {},
-        logger: pino.Logger = log,
-    ) {
+    constructor({
+        hub,
+        eventStream,
+        shardKey,
+        options = {},
+        logger = log,
+    }: {
+        hub: HubClient
+        eventStream: EventStreamConnection
+        shardKey: string
+        options?: EventStreamConsumerOptions
+        logger?: pino.Logger
+    }) {
         this.hub = hub
         this.stream = eventStream
         this.streamKey = `hub:${this.hub.host}:evt:msg:${shardKey}`
@@ -280,7 +293,10 @@ export class HubEventStreamConsumer {
     ) {
         this.stopped = false
         await this.stream.waitUntilReady()
-        await this.stream.createGroup(this.streamKey, this.groupName)
+        await this.stream.createGroup({
+            key: this.streamKey,
+            consumerGroup: this.groupName,
+        })
         void this._runLoop(onEvent)
     }
 

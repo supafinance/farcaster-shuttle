@@ -16,11 +16,26 @@ export type HubClient = {
     client: HubRpcClient
 }
 
-export function getHubClient(host: string, { ssl }: { ssl?: boolean }) {
+/**
+ * Get a Farcaster hub rpc client.
+ * @param {string} host The host of the hub.
+ * @param {object} options - The options object.
+ * @param {boolean | undefined} options.ssl Whether to use SSL.
+ * @returns {HubClient} The hub client.
+ */
+export function getHubClient(
+    host: string,
+    { ssl }: { ssl?: boolean },
+): { host: string; client: HubRpcClient } {
     const hub = ssl ? getSSLHubRpcClient(host) : getInsecureHubRpcClient(host)
     return { host, client: hub }
 }
 
+/**
+ * Get the cache key for a hub event.
+ * @param {HubEvent} event The hub event.
+ * @returns {string} The cache key.
+ */
 export const getHubEventCacheKey = (event: HubEvent): string => {
     if (isMergeMessageHubEvent(event)) {
         const hash = bytesToHex(event.mergeMessageBody.message.hash)

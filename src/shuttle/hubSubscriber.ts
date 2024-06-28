@@ -6,6 +6,7 @@ import {
 } from '@farcaster/hub-nodejs'
 import { type Result, err, ok } from 'neverthrow'
 import { TypedEmitter } from 'tiny-typed-emitter'
+import { EVENT_BATCH_SIZE } from '../env.ts'
 import type { Logger } from '../log'
 import { sleep } from '../utils'
 import type { EventStreamConnection } from './eventStream'
@@ -27,11 +28,19 @@ export abstract class HubSubscriber extends TypedEmitter<HubEventsEmitter> {
         throw new Error('Method not implemented.')
     }
 
+    /**
+     * Get the last event ID processed by the subscriber.
+     * This method should be implemented by the subclass.
+     */
     public async getLastEventId(): Promise<number | undefined> {
         return undefined
     }
 
-    public async processHubEvent(event: HubEvent): Promise<boolean> {
+    /**
+     * Process a hub event.
+     * This method should be implemented by the subclass.
+     */
+    public async processHubEvent(_event: HubEvent): Promise<boolean> {
         return true
     }
 
@@ -59,14 +68,21 @@ export class BaseHubSubscriber extends HubSubscriber {
     private totalShards: number | undefined
     private shardIndex: number | undefined
 
-    constructor(
-        label: string,
-        hubClient: HubRpcClient,
-        log: Logger,
-        eventTypes?: HubEventType[],
-        totalShards?: number,
-        shardIndex?: number,
-    ) {
+    constructor({
+        label,
+        hubClient,
+        log,
+        eventTypes,
+        totalShards,
+        shardIndex,
+    }: {
+        label: string
+        hubClient: HubRpcClient
+        log: Logger
+        eventTypes?: HubEventType[]
+        totalShards?: number
+        shardIndex?: number
+    }) {
         super()
         this.label = label
         this.hubClient = hubClient
@@ -167,7 +183,6 @@ export class BaseHubSubscriber extends HubSubscriber {
                 for await (const event of stream) {
                     await this.processHubEvent(event)
                 }
-                // biome-ignore lint/suspicious/noExplicitAny: error catching
             } catch (e: any) {
                 this.emit('onError', e, this.stopped)
                 if (this.stopped) {
@@ -195,20 +210,36 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
     private eventStream: EventStreamConnection
     private redis: RedisClient
     private eventsToAdd: HubEvent[]
-    private eventBatchSize = 20
 
-    constructor(
-        label: string,
-        hubClient: HubClient,
-        eventStream: EventStreamConnection,
-        redis: RedisClient,
-        shardKey: string,
-        log: Logger,
-        eventTypes?: HubEventType[],
-        totalShards?: number,
-        shardIndex?: number,
-    ) {
-        super(label, hubClient.client, log, eventTypes, totalShards, shardIndex)
+    constructor({
+        label,
+        hubClient,
+        eventStream,
+        redis,
+        shardKey,
+        log,
+        eventTypes,
+        totalShards,
+        shardIndex,
+    }: {
+        label: string
+        hubClient: HubClient
+        eventStream: EventStreamConnection
+        redis: RedisClient
+        shardKey: string
+        log: Logger
+        eventTypes?: HubEventType[]
+        totalShards?: number
+        shardIndex?: number
+    }) {
+        super({
+            label,
+            hubClient: hubClient.client,
+            log,
+            eventTypes,
+            totalShards,
+            shardIndex,
+        })
         this.eventStream = eventStream
         this.redis = redis
         this.streamKey = `hub:${hubClient.host}:evt:msg:${shardKey}`
@@ -216,19 +247,38 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
         this.eventsToAdd = []
     }
 
+    /**
+     * Get the last event ID processed by the subscriber.
+     * The eventId is stored in Redis.
+     * @returns {Promise<number | undefined>} The last event ID processed by the subscriber.
+     */
     public override async getLastEventId(): Promise<number | undefined> {
         // Migrate the old label based key if present
         const labelBasedKey = await this.redis.getLastProcessedEvent(this.label)
         if (labelBasedKey > 0) {
-            await this.redis.setLastProcessedEvent(this.redisKey, labelBasedKey)
-            await this.redis.setLastProcessedEvent(this.label, 0)
+            await this.redis.setLastProcessedEvent({
+                hubId: this.redisKey,
+                eventId: labelBasedKey,
+            })
+            await this.redis.setLastProcessedEvent({
+                hubId: this.label,
+                eventId: 0,
+            })
         }
         return await this.redis.getLastProcessedEvent(this.redisKey)
     }
 
+    /**
+     * Process a hub event.
+     * @param {HubEvent} event The hub event to process.
+     * @returns {Promise<boolean>} A promise that resolves to `true` if the event was successfully processed.
+     */
     public override async processHubEvent(event: HubEvent): Promise<boolean> {
+        // Add the event to the batch
         this.eventsToAdd.push(event)
-        if (this.eventsToAdd.length >= this.eventBatchSize) {
+
+        // Once the batch size is reached, add the events to the event stream
+        if (this.eventsToAdd.length >= EVENT_BATCH_SIZE) {
             let lastEventId: number | undefined
             for (const evt of this.eventsToAdd) {
                 await this.eventStream.add(
@@ -238,11 +288,12 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
                 lastEventId = evt.id
             }
             if (lastEventId) {
-                await this.redis.setLastProcessedEvent(
-                    this.redisKey,
-                    lastEventId,
-                )
+                await this.redis.setLastProcessedEvent({
+                    hubId: this.redisKey,
+                    eventId: lastEventId,
+                })
             }
+            // Clear the batch
             this.eventsToAdd = []
         }
 
