@@ -48,7 +48,7 @@ export const userData = pgTable('user_data', {
     urlUpdatedAt: timestamp('url_updated_at', { mode: 'string' }),
     powerBadge: boolean('power_badge').notNull().default(false),
     followersCount: integer('followers_count').notNull().default(0),
-    followingCount: integer('followings_count').notNull().default(0),
+    followingCount: integer('following_count').notNull().default(0),
 })
 
 export const userDataRelations = relations(userData, ({ many }) => ({
