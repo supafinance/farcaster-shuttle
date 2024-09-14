@@ -1,21 +1,27 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
-import type { AppDb } from '../db'
+import { and, eq } from 'drizzle-orm'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
+import { toHex } from 'viem'
+import { reactions } from '../lib/drizzle/schema.ts'
 import { log } from '../log'
 import { formatReactions } from './utils'
 
 /**
  * Insert a reaction in the database
- * @param msgs Hub events in JSON format
- * @param db Database connection
+ * @param {Message[]} msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} trx The database transaction
  */
-export async function insertReactions(msgs: Message[], db: AppDb) {
-    const reactions = formatReactions(msgs)
+export async function insertReactions({
+    msgs,
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
+    const values = formatReactions(msgs)
 
     try {
-        await db
-            .insertInto('reactions')
-            .values(reactions)
-            .onConflict((oc) => oc.column('hash').doNothing())
+        await trx
+            .insert(reactions)
+            .values(values)
+            .onConflictDoNothing()
             .execute()
 
         log.debug('REACTIONS INSERTED')
@@ -24,7 +30,15 @@ export async function insertReactions(msgs: Message[], db: AppDb) {
     }
 }
 
-export async function deleteReactions(msgs: Message[], db: AppDb) {
+/**
+ * Soft delete a reaction in the database by setting the deletedAt field
+ * @param {Message[]} msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} trx The database transaction
+ */
+export async function deleteReactions({
+    msgs,
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     try {
         for (const msg of msgs) {
             const data = msg.data
@@ -34,28 +48,39 @@ export async function deleteReactions(msgs: Message[], db: AppDb) {
             const reaction = data.reactionBody
 
             if (reaction.targetCastId) {
-                await db
-                    .updateTable('reactions')
+                await trx
+                    .update(reactions)
                     .set({
                         deletedAt: new Date(
                             fromFarcasterTime(data.timestamp)._unsafeUnwrap(),
-                        ),
+                        ).toISOString(),
                     })
-                    .where('fid', '=', data.fid)
-                    .where('type', '=', reaction.type)
-                    .where('targetCastHash', '=', reaction.targetCastId.hash)
+                    .where(
+                        and(
+                            eq(reactions.fid, String(data.fid)),
+                            eq(reactions.type, reaction.type),
+                            eq(
+                                reactions.targetCastHash,
+                                toHex(reaction.targetCastId.hash),
+                            ),
+                        ),
+                    )
                     .execute()
             } else if (reaction.targetUrl) {
-                await db
-                    .updateTable('reactions')
+                await trx
+                    .update(reactions)
                     .set({
                         deletedAt: new Date(
                             fromFarcasterTime(data.timestamp)._unsafeUnwrap(),
-                        ),
+                        ).toISOString(),
                     })
-                    .where('fid', '=', data.fid)
-                    .where('type', '=', reaction.type)
-                    .where('targetUrl', '=', reaction.targetUrl)
+                    .where(
+                        and(
+                            eq(reactions.fid, String(data.fid)),
+                            eq(reactions.type, reaction.type),
+                            eq(reactions.targetUrl, reaction.targetUrl),
+                        ),
+                    )
                     .execute()
             }
         }

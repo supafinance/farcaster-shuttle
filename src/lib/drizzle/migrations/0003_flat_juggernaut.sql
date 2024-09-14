@@ -1,0 +1,1 @@
+ALTER TABLE "users" ALTER COLUMN "fid" SET DATA TYPE numeric(12, 0);

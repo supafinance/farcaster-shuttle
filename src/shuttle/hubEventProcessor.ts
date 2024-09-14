@@ -1,158 +1,102 @@
 import {
     type HubEvent,
     type Message,
-    isCastAddMessage,
-    isCastRemoveMessage,
-    isLinkAddMessage,
-    isLinkRemoveMessage,
+    type MessageType,
     isMergeMessageHubEvent,
     isPruneMessageHubEvent,
-    isReactionAddMessage,
-    isReactionRemoveMessage,
     isRevokeMessageHubEvent,
-    isVerificationAddAddressMessage,
-    isVerificationRemoveMessage,
 } from '@farcaster/hub-nodejs'
-import { log } from '../log'
-import type { MessageHandler, MessageState, StoreMessageOperation } from './'
+import { App } from '../app.ts'
+import { db } from '../lib/drizzle'
+import type { MessageHandler } from './'
 import type { DB } from './db'
-import { MessageProcessor } from './messageProcessor'
 
-export class HubEventProcessor {
-    static async processHubEvent(
-        db: DB,
-        event: HubEvent,
-        handler: MessageHandler,
-    ) {
-        if (isMergeMessageHubEvent(event)) {
-            await this.processMessage(
-                db,
-                event.mergeMessageBody.message,
-                handler,
-                'merge',
-                event.mergeMessageBody.deletedMessages,
-            )
-        } else if (isRevokeMessageHubEvent(event)) {
-            await this.processMessage(
-                db,
-                event.revokeMessageBody.message,
-                handler,
-                'revoke',
-            )
-        } else if (isPruneMessageHubEvent(event)) {
-            await this.processMessage(
-                db,
-                event.pruneMessageBody.message,
-                handler,
-                'prune',
-            )
-        }
-    }
-
-    static async handleMissingMessage(
-        db: DB,
-        message: Message,
-        handler: MessageHandler,
-    ) {
-        await this.processMessage(db, message, handler, 'merge', [], true)
-    }
-
-    public static getMessageState(
-        message: Message,
-        operation: StoreMessageOperation,
-    ): MessageState {
-        const isAdd = operation === 'merge'
-        // Casts
-        if (isAdd && isCastAddMessage(message)) {
-            return 'created'
-        } else if (
-            (isAdd && isCastRemoveMessage(message)) ||
-            (!isAdd && isCastAddMessage(message))
-        ) {
-            return 'deleted'
-        }
-        // Links
-        if (isAdd && isLinkAddMessage(message)) {
-            return 'created'
-        } else if (
-            (isAdd && isLinkRemoveMessage(message)) ||
-            (!isAdd && isLinkAddMessage(message))
-        ) {
-            return 'deleted'
-        }
-        // Reactions
-        if (isAdd && isReactionAddMessage(message)) {
-            return 'created'
-        } else if (
-            (isAdd && isReactionRemoveMessage(message)) ||
-            (!isAdd && isReactionAddMessage(message))
-        ) {
-            return 'deleted'
-        }
-        // Verifications
-        if (isAdd && isVerificationAddAddressMessage(message)) {
-            return 'created'
-        } else if (
-            (isAdd && isVerificationRemoveMessage(message)) ||
-            (!isAdd && isVerificationAddAddressMessage(message))
-        ) {
-            return 'deleted'
-        }
-
-        // The above are 2p sets, so we have the consider whether they are add or remove messages to determine the state
-        // The rest are 1p sets, so we can just check the operation
-
-        return isAdd ? 'created' : 'deleted'
-    }
-
-    private static async processMessage(
-        db: DB,
-        message: Message,
-        handler: MessageHandler,
-        operation: StoreMessageOperation,
-        deletedMessages: Message[] = [],
-        wasMissed = false,
-    ) {
-        await db.transaction().execute(async (trx) => {
-            if (deletedMessages.length > 0) {
-                await Promise.all(
-                    deletedMessages.map(async (deletedMessage) => {
-                        const isNew = await MessageProcessor.storeMessage(
-                            deletedMessage,
-                            trx,
-                            'delete',
-                            log,
-                        )
-                        const state = this.getMessageState(
-                            deletedMessage,
-                            'delete',
-                        )
-                        await handler.handleMessageMerge(
-                            deletedMessage,
-                            trx,
-                            'delete',
-                            state,
-                            isNew,
-                            wasMissed,
-                        )
-                    }),
-                )
-            }
-            const isNew = await MessageProcessor.storeMessage(
-                message,
-                trx,
-                operation,
-                log,
-            )
-            const state = this.getMessageState(message, operation)
-            await handler.handleMessageMerge(
-                message,
-                trx,
-                operation,
-                state,
-                isNew,
-                wasMissed,
-            )
+/**
+ * Processes a hub event.
+ * @param {HubEvent} event - The hub event to process.
+ * @param {MessageHandler} handler - The message handler.
+ */
+export async function processHubEvent(
+    event: HubEvent,
+    handler: MessageHandler,
+) {
+    if (isMergeMessageHubEvent(event)) {
+        await processMessage({
+            db,
+            message: event.mergeMessageBody.message,
+            handler,
+            deletedMessages: event.mergeMessageBody.deletedMessages,
+        })
+    } else if (isRevokeMessageHubEvent(event)) {
+        await processMessage({
+            db,
+            message: event.revokeMessageBody.message,
+            handler,
+        })
+    } else if (isPruneMessageHubEvent(event)) {
+        await processMessage({
+            db,
+            message: event.pruneMessageBody.message,
+            handler,
         })
     }
+}
+
+/**
+ * Processes a message.
+ * @param {object} args - The arguments object.
+ * @param {DB} args.db - The database connection.
+ * @param {Message} args.message  - The message to process.
+ * @param {MessageHandler} args.handler - The message handler.
+ * @param {Message[] | undefined} args.deletedMessages - The deleted messages.
+ */
+async function processMessage({
+    db,
+    message,
+    handler,
+    deletedMessages = [],
+}: {
+    db: DB
+    message: Message
+    handler: MessageHandler
+    deletedMessages?: Message[]
+}) {
+    await db.transaction(async (trx) => {
+        if (deletedMessages.length > 0) {
+            await Promise.all(
+                deletedMessages.map(async (deletedMessage) => {
+                    await handler.handleMessageMerge({
+                        message: deletedMessage,
+                        trx,
+                    })
+                }),
+            )
+        }
+        await handler.handleMessageMerge({
+            message,
+            trx,
+        })
+    })
+}
+
+/**
+ * Processes messages of a given type.
+ * @param {object} args - The arguments object.
+ * @param {Message[]} args.messages - The messages to process.
+ * @param {MessageType} args.type - The message type.
+ */
+export async function processMessages({
+    messages,
+    type,
+}: {
+    messages: Message[]
+    type: MessageType
+}) {
+    await db.transaction(async (trx) => {
+        await App.processMessagesOfType({
+            messages,
+            type,
+            trx,
+        })
+    })
 }

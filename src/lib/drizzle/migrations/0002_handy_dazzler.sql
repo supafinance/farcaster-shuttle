@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "fid_idx" ON "verifications" USING btree ("fid");

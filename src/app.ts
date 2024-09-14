@@ -1,18 +1,13 @@
 import * as process from 'node:process'
 import url from 'node:url'
-// import { Command } from 'commander'
 import { Command } from '@commander-js/extra-typings'
-import {
-    type HubEvent,
-    type Message,
-    MessageType,
-    bytesToHexString,
-} from '@farcaster/hub-nodejs'
+import { type HubEvent, type Message, MessageType } from '@farcaster/hub-nodejs'
 import type { Queue } from 'bullmq'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { ok } from 'neverthrow'
-import { type AppDb, migrateToLatest } from './db.ts'
 import {
     BACKFILL_FIDS,
+    BATCH_SIZE,
     CONCURRENCY,
     HUB_HOST,
     HUB_SSL,
@@ -31,148 +26,165 @@ import {
     insertVerifications,
 } from './processors/verification.ts'
 import {
-    type DB,
     EventStreamConnection,
     EventStreamHubSubscriber,
-    HubEventProcessor,
     HubEventStreamConsumer,
     type HubSubscriber,
     type MessageHandler,
-    MessageReconciliation,
-    type MessageState,
     RedisClient,
-    type StoreMessageOperation,
-    getDbClient,
     getHubClient,
+    processHubEvent,
+    processMessages,
+    reconcileMessagesForFid,
 } from './shuttle'
 import { getQueue, getWorker } from './worker.ts'
 
 const hubId = 'shuttle'
 
+/**
+ * Class that represents the shuttle application
+ */
 export class App implements MessageHandler {
     public redis: RedisClient
-    private readonly db: DB
     private hubSubscriber: HubSubscriber
     private streamConsumer: HubEventStreamConsumer
     private readonly hubId
 
-    constructor(
-        db: DB,
-        redis: RedisClient,
-        hubSubscriber: HubSubscriber,
-        streamConsumer: HubEventStreamConsumer,
-    ) {
-        this.db = db
+    constructor({
+        redis,
+        hubSubscriber,
+        streamConsumer,
+    }: {
+        redis: RedisClient
+        hubSubscriber: HubSubscriber
+        streamConsumer: HubEventStreamConsumer
+    }) {
         this.redis = redis
         this.hubSubscriber = hubSubscriber
         this.hubId = hubId
         this.streamConsumer = streamConsumer
     }
 
-    static create(
-        dbUrl: string,
-        redisUrl: string,
-        hubUrl: string,
-        totalShards: number,
-        shardIndex: number,
-        hubSSL = false,
-    ) {
-        const db = getDbClient(dbUrl)
+    static create() {
+        const redisUrl = REDIS_URL
+        const hubUrl = HUB_HOST
+        const totalShards = TOTAL_SHARDS
+        const shardIndex = SHARD_INDEX
+        const hubSSL = HUB_SSL ?? false
+
+        // creates a hub rpc client
         const hub = getHubClient(hubUrl, { ssl: hubSSL })
-        const redis = RedisClient.create(redisUrl)
+        const redis = RedisClient.create({ redisUrl })
         const eventStreamForWrite = new EventStreamConnection(redis.client)
         const eventStreamForRead = new EventStreamConnection(redis.client)
         const shardKey = totalShards === 0 ? 'all' : `${shardIndex}`
-        const hubSubscriber = new EventStreamHubSubscriber(
-            hubId,
-            hub,
-            eventStreamForWrite,
+        const hubSubscriber = new EventStreamHubSubscriber({
+            label: hubId,
+            hubClient: hub,
+            eventStream: eventStreamForWrite,
             redis,
             shardKey,
             log,
-            undefined,
+            eventTypes: undefined,
             totalShards,
             shardIndex,
-        )
-        const streamConsumer = new HubEventStreamConsumer(
+        })
+        const streamConsumer = new HubEventStreamConsumer({
             hub,
-            eventStreamForRead,
+            eventStream: eventStreamForRead,
             shardKey,
-        )
+        })
 
-        return new App(db, redis, hubSubscriber, streamConsumer)
+        return new App({ redis, hubSubscriber, streamConsumer })
     }
 
-    static async processMessagesOfType(
-        messages: Message[],
-        type: MessageType,
-        db: AppDb,
-    ): Promise<void> {
+    /**
+     * Process messages of a given type
+     * @param {object} args - The arguments object.
+     * @param {Message[]} args.messages - The messages to process.
+     * @param {MessageType} args.type - The type of message to process.
+     * @param {PostgresJsTransaction} args.trx - The database transaction.
+     */
+    static async processMessagesOfType({
+        messages,
+        type,
+        trx,
+    }: {
+        messages: Message[]
+        type: MessageType
+        trx: PostgresJsTransaction<any, any>
+    }): Promise<void> {
         switch (type) {
             // case MessageType.CAST_ADD:
-            //     await insertCasts(messages, db)
+            //     await insertCasts({ msgs: messages, trx })
             //     break
             // case MessageType.CAST_REMOVE:
-            //     await deleteCasts(messages, db)
+            //     await deleteCasts({ msgs: messages, trx })
             //     break
             case MessageType.REACTION_ADD:
-                await insertReactions(messages, db)
+                await insertReactions({
+                    msgs: messages,
+                    trx,
+                })
                 break
             case MessageType.REACTION_REMOVE:
-                await deleteReactions(messages, db)
+                await deleteReactions({
+                    msgs: messages,
+                    trx,
+                })
                 break
             case MessageType.VERIFICATION_ADD_ETH_ADDRESS:
-                await insertVerifications({ msgs: messages, db })
+                await insertVerifications({
+                    msgs: messages,
+                    trx,
+                })
                 break
             case MessageType.VERIFICATION_REMOVE:
-                await deleteVerifications({ msgs: messages, db })
+                await deleteVerifications({
+                    msgs: messages,
+                    trx,
+                })
                 break
             case MessageType.USER_DATA_ADD:
-                await insertUserDatas({ msgs: messages, db })
+                await insertUserDatas({
+                    msgs: messages,
+                    trx,
+                })
                 break
             case MessageType.LINK_ADD:
-                await insertLinks({ msgs: messages, db })
+                await insertLinks({
+                    msgs: messages,
+                    trx,
+                })
                 break
             case MessageType.LINK_REMOVE:
-                await deleteLinks({ msgs: messages, db })
+                await deleteLinks({
+                    msgs: messages,
+                    trx,
+                })
                 break
             default:
                 log.debug(`No handler for message type ${type}`)
         }
     }
 
-    // todo: checkout christopher's implementation
-    async handleMessageMerge(
-        message: Message,
-        txn: DB,
-        operation: StoreMessageOperation,
-        state: MessageState,
-        isNew: boolean,
-        wasMissed: boolean,
-    ): Promise<void> {
-        if (!isNew) {
-            // Message was already in the db, no-op
-            return
-        }
-
-        const appDB = txn as unknown as AppDb // Need this to make typescript happy, not clean way to "inherit" table types
-
+    async handleMessageMerge({
+        message,
+        trx,
+    }: {
+        message: Message
+        trx: PostgresJsTransaction<any, any>
+    }): Promise<void> {
         if (message.data?.type) {
-            await App.processMessagesOfType([message], message.data.type, appDB)
+            await App.processMessagesOfType({
+                messages: [message],
+                type: message.data.type,
+                trx,
+            })
         }
-
-        const messageDesc = wasMissed
-            ? `missed message (${operation})`
-            : `message (${operation})`
-        log.info(
-            `${state} ${messageDesc} ${bytesToHexString(
-                message.hash,
-            )._unsafeUnwrap()} (type ${message.data?.type})`,
-        )
     }
 
     async start() {
-        await this.ensureMigrations()
         // Hub subscriber listens to events from the hub and writes them to a redis stream. This allows for scaling by
         // splitting events to multiple streams
         await this.hubSubscriber.start()
@@ -194,40 +206,25 @@ export class App implements MessageHandler {
             throw new Error('Hub client is not initialized')
         }
 
-        const reconciler = new MessageReconciliation(
-            this.hubSubscriber.hubClient,
-            this.db,
-            log,
-        )
         for (const fid of fids) {
-            await reconciler.reconcileMessagesForFid(
+            await reconcileMessagesForFid({
+                client: this.hubSubscriber.hubClient,
+                log,
                 fid,
-                async (message, missingInDb, prunedInDb, revokedInDb) => {
-                    if (missingInDb) {
-                        await HubEventProcessor.handleMissingMessage(
-                            this.db,
-                            message,
-                            this,
-                        )
-                    } else if (prunedInDb || revokedInDb) {
-                        const messageDesc = prunedInDb
-                            ? 'pruned'
-                            : revokedInDb
-                              ? 'revoked'
-                              : 'existing'
-                        log.info(
-                            `Reconciled ${messageDesc} message ${bytesToHexString(
-                                message.hash,
-                            )._unsafeUnwrap()}`,
-                        )
-                    }
+                onHubMessage: async (messages, type) => {
+                    await processMessages({
+                        messages,
+                        type,
+                    })
                 },
-            )
+            })
         }
     }
 
-    async backfillFids(fids: number[], backfillQueue: Queue) {
-        await this.ensureMigrations()
+    async backfillFids({
+        fids,
+        backfillQueue,
+    }: { fids: number[]; backfillQueue: Queue }) {
         const startedAt = Date.now()
         if (fids.length === 0) {
             const maxFidResult = await this.hubSubscriber.hubClient?.getFids({
@@ -253,14 +250,13 @@ export class App implements MessageHandler {
             }
             log.debug(`Queuing up fids upto: ${maxFid}`)
             // create an array of arrays in batches of 100 upto maxFid
-            const batchSize = 20
             const fids = Array.from(
-                { length: Math.ceil(maxFid / batchSize) },
-                (_, i) => i * batchSize,
+                { length: Math.ceil(maxFid / BATCH_SIZE) },
+                (_, i) => i * BATCH_SIZE,
             ).map((fid) => fid + 1)
             for (const start of fids) {
                 const subset = Array.from(
-                    { length: batchSize },
+                    { length: BATCH_SIZE },
                     (_, i) => start + i,
                 )
                 await backfillQueue.add('reconcile', { fids: subset })
@@ -270,14 +266,6 @@ export class App implements MessageHandler {
         }
         await backfillQueue.add('completionMarker', { startedAt })
         log.info('Backfill jobs queued')
-    }
-
-    async ensureMigrations() {
-        const result = await migrateToLatest(this.db, log)
-        if (result.isErr()) {
-            log.error('Failed to migrate database', result.error)
-            throw result.error
-        }
     }
 
     async stop() {
@@ -293,7 +281,7 @@ export class App implements MessageHandler {
     }
 
     private async processHubEvent(hubEvent: HubEvent) {
-        await HubEventProcessor.processHubEvent(this.db, hubEvent, this)
+        await processHubEvent(hubEvent, this)
     }
 }
 
@@ -303,40 +291,39 @@ if (
         url.pathToFileURL(process.argv[1] || '').toString(),
     )
 ) {
+    /**
+     * Starts the shuttle listening to current events from the hub
+     */
     async function start() {
         log.info(
             `Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
-        const app = App.create(
-            POSTGRES_URL,
-            REDIS_URL,
-            HUB_HOST,
-            TOTAL_SHARDS,
-            SHARD_INDEX,
-            HUB_SSL,
-        )
+        const app = App.create()
         log.info('Starting shuttle')
         await app.start()
     }
 
+    /**
+     * Queues up backfill for the worker
+     */
     async function backfill() {
         log.info(
             `Creating app connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
-        const app = App.create(
-            POSTGRES_URL,
-            REDIS_URL,
-            HUB_HOST,
-            TOTAL_SHARDS,
-            SHARD_INDEX,
-            HUB_SSL,
-        )
+        const app = App.create()
         const fids = BACKFILL_FIDS
             ? BACKFILL_FIDS.split(',').map((fid) => Number.parseInt(fid))
             : []
         log.info(`Backfilling fids: ${fids}`)
+
+        // clear redis db
+        await app.redis.client.flushdb()
+
         const backfillQueue = getQueue(app.redis.client)
-        await app.backfillFids(fids, backfillQueue)
+        await app.backfillFids({ fids, backfillQueue })
+
+        // set last processed event id to 0
+        await app.redis.setLastProcessedEvent({ hubId, eventId: 0 })
 
         // Start the worker after initiating a backfill
         const worker = getWorker(app, app.redis.client, log, CONCURRENCY)
@@ -344,18 +331,14 @@ if (
         return
     }
 
+    /**
+     * Starts the backfill worker
+     */
     async function worker() {
         log.info(
             `Starting worker connecting to: ${POSTGRES_URL}, ${REDIS_URL}, ${HUB_HOST}`,
         )
-        const app = App.create(
-            POSTGRES_URL,
-            REDIS_URL,
-            HUB_HOST,
-            TOTAL_SHARDS,
-            SHARD_INDEX,
-            HUB_SSL,
-        )
+        const app = App.create()
         const worker = getWorker(app, app.redis.client, log, CONCURRENCY)
         await worker.run()
     }

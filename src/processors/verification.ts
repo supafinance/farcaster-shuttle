@@ -1,33 +1,32 @@
 import { type Message, fromFarcasterTime } from '@farcaster/hub-nodejs'
+import { and, eq } from 'drizzle-orm'
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
 import { type Address, toHex } from 'viem'
-import type { AppDb } from '../db.ts'
+import { verifications } from '../lib/drizzle/schema.ts'
 import { log } from '../log.ts'
 import { formatVerifications } from './utils.ts'
 
 /**
  * Insert a new verification in the database
- * @param msg Hub event in JSON format
+ * @param {Message[]} msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} trx The database transaction
  */
 export async function insertVerifications({
     msgs,
-    db,
-}: { msgs: Message[]; db: AppDb }) {
-    log.info('INSERTING VERIFICATIONS')
-    const verifications = formatVerifications(msgs)
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
+    const values = formatVerifications(msgs)
 
-    if (!verifications) {
+    if (!values || values.length === 0) {
         return
     }
 
     try {
-        await db
-            .insertInto('verifications')
-            .values(verifications)
-            .onConflict((oc) =>
-                oc.columns(['fid', 'signerAddress']).doNothing(),
-            )
+        await trx
+            .insert(verifications)
+            .values(values)
+            .onConflictDoNothing()
             .execute()
-
         log.debug('VERIFICATIONS INSERTED')
     } catch (error) {
         log.error(error, 'ERROR INSERTING VERIFICATION')
@@ -35,14 +34,14 @@ export async function insertVerifications({
 }
 
 /**
- * Delete a verification from the database
- * @param msg Hub event in JSON format
+ * Soft delete a verification from the database by setting the deletedAt field
+ * @param {Message[]} msgs Hub events in JSON format
+ * @param {PostgresJsTransaction} trx The database transaction
  */
 export async function deleteVerifications({
     msgs,
-    db,
-}: { msgs: Message[]; db: AppDb }) {
-    log.info('DELETING VERIFICATIONS')
+    trx,
+}: { msgs: Message[]; trx: PostgresJsTransaction<any, any> }) {
     try {
         for (const msg of msgs) {
             const data = msg.data
@@ -58,15 +57,19 @@ export async function deleteVerifications({
                 return
             }
 
-            await db
-                .updateTable('verifications')
+            await trx
+                .update(verifications)
                 .set({
                     deletedAt: new Date(
                         fromFarcasterTime(data.timestamp)._unsafeUnwrap(),
-                    ),
+                    ).toISOString(),
                 })
-                .where('signerAddress', '=', address)
-                .where('fid', '=', data.fid)
+                .where(
+                    and(
+                        eq(verifications.signerAddress, address),
+                        eq(verifications.fid, String(data.fid)),
+                    ),
+                )
                 .execute()
         }
 
