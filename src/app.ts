@@ -1,10 +1,10 @@
 import * as process from 'node:process'
 import url from 'node:url'
-import { Command } from '@commander-js/extra-typings'
-import { type HubEvent, type Message, MessageType } from '@farcaster/hub-nodejs'
-import type { Queue } from 'bullmq'
-import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js'
-import { ok } from 'neverthrow'
+import {Command} from '@commander-js/extra-typings'
+import {type HubEvent, type Message, MessageType} from '@farcaster/hub-nodejs'
+import type {Queue} from 'bullmq'
+import type {PostgresJsTransaction} from 'drizzle-orm/postgres-js'
+import {ok} from 'neverthrow'
 import {
     BACKFILL_FIDS,
     BATCH_SIZE,
@@ -17,27 +17,24 @@ import {
     SHARD_INDEX,
     TOTAL_SHARDS,
 } from './env.ts'
-import { log } from './log.ts'
-import { deleteLinks, insertLinks } from './processors/link.ts'
-import { deleteReactions, insertReactions } from './processors/reaction.ts'
-import { insertUserDatas } from './processors/userData.ts'
-import {
-    deleteVerifications,
-    insertVerifications,
-} from './processors/verification.ts'
+import {log} from './log.ts'
+import {deleteLinks, insertLinks} from './processors/link.ts'
+import {deleteReactions, insertReactions} from './processors/reaction.ts'
+import {insertUserDatas} from './processors/userData.ts'
+import {deleteVerifications, insertVerifications,} from './processors/verification.ts'
 import {
     EventStreamConnection,
     EventStreamHubSubscriber,
+    getHubClient,
     HubEventStreamConsumer,
     type HubSubscriber,
     type MessageHandler,
-    RedisClient,
-    getHubClient,
     processHubEvent,
     processMessages,
     reconcileMessagesForFid,
+    RedisClient,
 } from './shuttle'
-import { getQueue, getWorker } from './worker.ts'
+import {getQueue, getWorker} from './worker.ts'
 
 const hubId = 'shuttle'
 
@@ -291,6 +288,7 @@ if (
         url.pathToFileURL(process.argv[1] || '').toString(),
     )
 ) {
+    console.log('Running shuttle through CLI')
     /**
      * Starts the shuttle listening to current events from the hub
      */
@@ -301,6 +299,8 @@ if (
         const app = App.create()
         log.info('Starting shuttle')
         await app.start()
+        // Keep the process running
+        await new Promise(() => {})
     }
 
     /**
@@ -328,7 +328,8 @@ if (
         // Start the worker after initiating a backfill
         const worker = getWorker(app, app.redis.client, log, CONCURRENCY)
         await worker.run()
-        return
+        // Keep the process running
+        await new Promise(() => {})
     }
 
     /**
@@ -341,6 +342,8 @@ if (
         const app = App.create()
         const worker = getWorker(app, app.redis.client, log, CONCURRENCY)
         await worker.run()
+        // Keep the process running
+    await new Promise(() => {})
     }
 
     const program = new Command()

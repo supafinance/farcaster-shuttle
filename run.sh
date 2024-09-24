@@ -17,23 +17,29 @@ function install {
 
 # Start the worker for reconciliation/backfill
 function start_worker {
-    echo "Starting the worker for reconciliation/b ackfill..."
+    echo "Starting the worker for reconciliation/backfill..."
     POSTGRES_URL=${POSTGRES_URL} REDIS_URL=${REDIS_URL} HUB_HOST=${HUB_HOST}:${HUB_PORT} HUB_SSL=false \
-    bun start worker &
+    bun start worker
+    echo "Worker process exited with code $?"
+    sleep infinity
 }
 
 # Kick off the backfill process
 function backfill {
     echo "Kicking off the backfill process..."
     POSTGRES_URL=${POSTGRES_URL} REDIS_URL=${REDIS_URL} HUB_HOST=${HUB_HOST}:${HUB_PORT} HUB_SSL=false \
-    bun start backfill &
+    bun start backfill
+    echo "Backfill process exited with code $?"
+    sleep infinity
 }
 
 # Start the app and sync messages from the event stream
 function start_app {
     echo "Starting the app and syncing messages from the event stream..."
     POSTGRES_URL=${POSTGRES_URL} REDIS_URL=${REDIS_URL} HUB_HOST=${HUB_HOST}:${HUB_PORT} HUB_SSL=false \
-    bun start start &
+    bun start start
+    echo "App process exited with code $?"
+    sleep infinity
 }
 
 # Main function to run all steps

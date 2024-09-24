@@ -1,8 +1,10 @@
-FROM oven/bun:latest
+FROM oven/bun:1
 
-# Copy the project files
 WORKDIR /app
+
+COPY package.json bun.lockb ./
+RUN bun install
+
 COPY . .
 
-# Command to run the app
-CMD ["./run.sh", "all"]
+CMD ["bun", "run", "start"]
