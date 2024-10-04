@@ -3,22 +3,5 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: bun run start
-    env_file:
-      - .env
-
-  shuttle_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: bun run worker
-    env_file:
-      - .env
-
-  shuttle_backfill:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: bun run backfill
     env_file:
       - .env

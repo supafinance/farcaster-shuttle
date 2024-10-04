@@ -1,13 +1,13 @@
-import { HubEvent, extractEventTimestamp } from '@farcaster/hub-nodejs'
-import { type Cluster, type Redis, ReplyError } from 'ioredis'
-import type { Result } from 'neverthrow'
-import type { pino } from 'pino'
-import { MAX_EVENTS_PER_FETCH, MESSAGE_PROCESSING_CONCURRENCY } from '../env.ts'
-import { log } from '../log'
-import { statsd } from '../statsd'
-import { inBatchesOf, sleep } from '../utils'
-import type { HubClient } from './hub'
-import type { ProcessResult } from './index'
+import {extractEventTimestamp, HubEvent} from '@farcaster/hub-nodejs'
+import {type Cluster, type Redis, ReplyError} from 'ioredis'
+import type {Result} from 'neverthrow'
+import type {pino} from 'pino'
+import {MAX_EVENTS_PER_FETCH, MESSAGE_PROCESSING_CONCURRENCY} from '../env.ts'
+import {log} from '../log'
+import {statsd} from '../statsd'
+import {inBatchesOf, sleep} from '../utils'
+import type {HubClient} from './hub'
+import type {ProcessResult} from './index'
 
 // Dummy name since we don't need unique names to get desired semantics
 const DUMMY_CONSUMER_GROUP = 'x'
@@ -78,6 +78,19 @@ export class EventStreamConnection {
                     (e.message as string).startsWith('BUSYGROUP')
                 ) {
                     return // Ignore if group already exists
+                }
+                if (
+                    'message' in e &&
+                    (e.message as string).includes('XGROUP')
+                ) {
+                    // Otherwise create the group
+                    return await this.client.xgroup(
+                        'CREATE',
+                        key,
+                        consumerGroup,
+                        '0',
+                        'MKSTREAM',
+                    )
                 }
             }
             throw e

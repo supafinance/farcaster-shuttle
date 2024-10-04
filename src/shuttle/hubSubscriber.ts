@@ -1,17 +1,12 @@
-import {
-    type ClientReadableStream,
-    HubEvent,
-    HubEventType,
-    type HubRpcClient,
-} from '@farcaster/hub-nodejs'
-import { type Result, err, ok } from 'neverthrow'
-import { TypedEmitter } from 'tiny-typed-emitter'
-import { EVENT_BATCH_SIZE } from '../env.ts'
-import type { Logger } from '../log'
-import { sleep } from '../utils'
-import type { EventStreamConnection } from './eventStream'
-import type { HubClient } from './hub'
-import type { RedisClient } from './redis'
+import {type ClientReadableStream, HubEvent, HubEventType, type HubRpcClient,} from '@farcaster/hub-nodejs'
+import {err, ok, type Result} from 'neverthrow'
+import {TypedEmitter} from 'tiny-typed-emitter'
+import {EVENT_BATCH_SIZE} from '../env.ts'
+import type {Logger} from '../log'
+import {sleep} from '../utils'
+import type {EventStreamConnection} from './eventStream'
+import type {HubClient} from './hub'
+import type {RedisClient} from './redis'
 
 interface HubEventsEmitter {
     event: (hubEvent: HubEvent) => void
@@ -183,21 +178,23 @@ export class BaseHubSubscriber extends HubSubscriber {
                 for await (const event of stream) {
                     await this.processHubEvent(event)
                 }
-            } catch (e: any) {
-                this.emit('onError', e, this.stopped)
-                if (this.stopped) {
-                    this.log.info(
-                        `Hub event stream processing stopped: ${e.message}`,
-                    )
-                } else {
-                    this.log.info(
-                        `Hub event stream processing halted unexpectedly: ${e.message}`,
-                    )
-                    this.log.info(
-                        `HubSubscriber ${this.label} restarting hub event stream in 5 seconds...`,
-                    )
-                    await sleep(5_000)
-                    void this.start()
+            } catch (e: unknown) {
+                if (e instanceof Error) {
+                    this.emit('onError', e, this.stopped)
+                    if (this.stopped) {
+                        this.log.info(
+                            `Hub event stream processing stopped: ${e.message}`,
+                        )
+                    } else {
+                        this.log.info(
+                            `Hub event stream processing halted unexpectedly (SANITY CHECK): ${e.message}`,
+                        )
+                        this.log.info(
+                            `HubSubscriber ${this.label} restarting hub event stream in 5 seconds...`,
+                        )
+                        await sleep(5_000)
+                        void this.start()
+                    }
                 }
             }
         }
@@ -281,17 +278,29 @@ export class EventStreamHubSubscriber extends BaseHubSubscriber {
         if (this.eventsToAdd.length >= EVENT_BATCH_SIZE) {
             let lastEventId: number | undefined
             for (const evt of this.eventsToAdd) {
-                await this.eventStream.add(
-                    this.streamKey,
-                    Buffer.from(HubEvent.encode(evt).finish()),
-                )
+                await this.eventStream
+                    .add(
+                        this.streamKey,
+                        Buffer.from(HubEvent.encode(evt).finish()),
+                    )
+                    .catch((e) => {
+                        throw new Error(
+                            `Failed to add event to stream inside hubSubscriber: ${e}`,
+                        )
+                    })
                 lastEventId = evt.id
             }
             if (lastEventId) {
-                await this.redis.setLastProcessedEvent({
-                    hubId: this.redisKey,
-                    eventId: lastEventId,
-                })
+                await this.redis
+                    .setLastProcessedEvent({
+                        hubId: this.redisKey,
+                        eventId: lastEventId,
+                    })
+                    .catch((e) => {
+                        throw new Error(
+                            `Failed to set last processed event id in redis: ${e}`,
+                        )
+                    })
             }
             // Clear the batch
             this.eventsToAdd = []
